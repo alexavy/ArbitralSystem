@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+        <AssemblyName>PublicMarketInfoSevice.Persistence</AssemblyName>
+        <RootNamespace>Services.PublicMarketInfo.PublicMarketInfoService.Persistence</RootNamespace>
+    </PropertyGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="AutoMapper" Version="9.0.0" />
+      <PackageReference Include="Hangfire.Core" Version="1.7.11" />
+      <PackageReference Include="MediatR" Version="8.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ArbitralSystem.Distributor.Domain\ArbitralSystem.Distributor.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="QueryHandlers" />
+    </ItemGroup>
+
+</Project>

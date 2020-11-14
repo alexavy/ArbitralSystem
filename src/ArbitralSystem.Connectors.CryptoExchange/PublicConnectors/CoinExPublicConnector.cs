@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Logger;
 using ArbitralSystem.Connectors.CoinEx;
@@ -9,30 +10,40 @@ using ArbitralSystem.Connectors.Core.Converters;
 using ArbitralSystem.Connectors.Core.Models;
 using ArbitralSystem.Connectors.Core.PublicConnectors;
 using ArbitralSystem.Connectors.CryptoExchange.Models;
+using CoinEx.Net;
+using CoinEx.Net.Interfaces;
+using CoinEx.Net.Objects;
 
 namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
 {
-    public class CoinExPublicConnector : IPublicConnector
+    internal class CoinExPublicConnector : BasePublicConnector, IPublicConnector
     {
         private readonly ICoinExConnector _coinExConnector;
+        private readonly ICoinExClient _coinExClient;
         private readonly IDtoConverter _converter;
         private readonly ILogger _logger;
 
         public CoinExPublicConnector(ICoinExConnector coinExConnector,
             IDtoConverter converter,
-            ILogger logger)
+            ILogger logger,
+            ICoinExClient coinExClient = null)
         {
             _coinExConnector = coinExConnector;
             _converter = converter;
             _logger = logger;
+
+            if (coinExClient == null)
+                _coinExClient = new CoinExClient();
+            else
+                _coinExClient = coinExClient;
         }
 
-        public Task<long> GetServerTime()
+        Task<long> IPublicConnector.GetServerTime(CancellationToken ct)
         {
             throw new NotSupportedException("CoinEx server time not supported");
         }
 
-        public async Task<IEnumerable<IPairInfo>> GetPairsInfo()
+        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo(CancellationToken ct)
         {
             var pairs = await _coinExConnector.GetMarketList();
             var pairsForResult = new List<PairInfo>();
@@ -55,7 +66,16 @@ namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
             {
                 throw pairs.Exception;
             }
+
             return pairsForResult;
+        }
+
+        async Task<IEnumerable<IPairPrice>> IPublicConnector.GetPairPrices(CancellationToken ct)
+        {
+            var response = await _coinExClient.GetSymbolStatesAsync(ct);
+            ValidateResponse(response);
+            return _converter.Convert<IEnumerable<KeyValuePair<string, CoinExSymbolStateData>>,
+                IEnumerable<PairPrice>>(response.Data.Tickers.ToArray());
         }
     }
 }

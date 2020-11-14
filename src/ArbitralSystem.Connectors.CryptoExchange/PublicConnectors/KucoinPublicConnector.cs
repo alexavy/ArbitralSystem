@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Helpers;
 using ArbitralSystem.Connectors.Core.Converters;
@@ -12,7 +13,7 @@ using Kucoin.Net.Objects;
 
 namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
 {
-    public class KucoinPublicConnector : IPublicConnector
+    internal class KucoinPublicConnector : BasePublicConnector, IPublicConnector
     {
         private readonly IDtoConverter _converter;
         private readonly IKucoinClient _kucoinClient;
@@ -28,16 +29,25 @@ namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
             _converter = converter;
         }
 
-        async Task<long> IPublicConnector.GetServerTime()
+        async Task<long> IPublicConnector.GetServerTime(CancellationToken ct)
         {
-            var response = await _kucoinClient.GetServerTimeAsync();
+            var response = await _kucoinClient.GetServerTimeAsync(ct);
+            ValidateResponse(response);
             return TimeHelper.DateTimeToTimeStamp(response.Data.ToUniversalTime());
         }
 
-        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo()
+        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo(CancellationToken ct)
         {
-            var response = await _kucoinClient.GetSymbolsAsync();
+            var response = await _kucoinClient.GetSymbolsAsync(ct:ct);
+            ValidateResponse(response);
             return _converter.Convert<IEnumerable<KucoinSymbol>, IEnumerable<PairInfo>>(response.Data);
+        }
+
+        async Task<IEnumerable<IPairPrice>> IPublicConnector.GetPairPrices(CancellationToken ct)
+        {
+            var response = await _kucoinClient.GetTickersAsync(ct);
+            ValidateResponse(response);
+            return _converter.Convert<IEnumerable<KucoinAllTick>, IEnumerable<PairPrice>>(response.Data.Data);
         }
     }
 }

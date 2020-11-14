@@ -42,8 +42,8 @@ namespace ArbitralSystem.PublicMarketInfoService.Domain.Services
         {
             _logger.Debug($"Update process for {exchange} started");
             var connector = _publicConnectorFactory.GetInstance(exchange);
-            var exchangePairs = await connector.GetPairsInfo();
-
+            var exchangePairs = await connector.GetPairsInfo(cancellationToken);
+            
             var pairs = exchangePairs
                 .Select(o => new PairInfo(o.ExchangePairName, o.BaseCurrency, o.QuoteCurrency, o.UnificatedPairName, o.Exchange)).ToArray();
             var existedPairs = _mapper.Map<PairInfo[]>((await _mediator.Send(new PairInfoByExchangeQuery(exchange, true), cancellationToken)).ToArray());

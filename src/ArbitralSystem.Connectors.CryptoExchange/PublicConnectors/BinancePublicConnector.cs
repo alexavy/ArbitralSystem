@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Helpers;
 using ArbitralSystem.Connectors.Core.Converters;
@@ -16,7 +18,7 @@ using JetBrains.Annotations;
 
 namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
 {
-    internal class BinancePublicConnector : IPublicConnector
+    internal class BinancePublicConnector : BasePublicConnector, IPublicConnector
     {
         private readonly IBinanceClient _binanceClient;
         private readonly IDtoConverter _converter;
@@ -32,17 +34,25 @@ namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
             _converter = converter;
         }
 
-        async Task<long> IPublicConnector.GetServerTime()
+        async Task<long> IPublicConnector.GetServerTime(CancellationToken ct)
         {
-            var response = await _binanceClient.GetServerTimeAsync();
+            var response = await _binanceClient.GetServerTimeAsync(ct:ct);
+            ValidateResponse(response);
             return TimeHelper.DateTimeToTimeStamp(response.Data);
         }
 
-        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo()
+        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo(CancellationToken ct)
         {
-            var response = await _binanceClient.GetExchangeInfoAsync();
-
+            var response = await _binanceClient.GetExchangeInfoAsync(ct);
+            ValidateResponse(response);
             return _converter.Convert<IEnumerable<BinanceSymbol>, IEnumerable<PairInfo>>(response.Data.Symbols);
+        }
+
+        public async Task<IEnumerable<IPairPrice>> GetPairPrices(CancellationToken ct)
+        {
+            var response = await _binanceClient.GetAllPricesAsync(ct);
+            ValidateResponse(response);
+            return _converter.Convert<IEnumerable<BinancePrice>, IEnumerable<PairPrice>>(response.Data);
         }
     }
 }

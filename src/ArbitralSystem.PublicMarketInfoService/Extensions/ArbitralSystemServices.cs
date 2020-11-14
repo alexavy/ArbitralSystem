@@ -8,7 +8,6 @@ using ArbitralSystem.Connectors.CryptoExchange.Converter;
 using ArbitralSystem.PublicMarketInfoService.Domain.Interfaces;
 using ArbitralSystem.PublicMarketInfoService.Domain.Services;
 using ArbitralSystem.PublicMarketInfoService.Persistence.Repositories;
-using ArbitralSystem.PublicMarketInfoService.Services;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,17 +24,18 @@ namespace ArbitralSystem.PublicMarketInfoService.Extensions
             services.AddMediatR(AppDomain.CurrentDomain.Load(DomainAssembly),
                 AppDomain.CurrentDomain.Load(PersistenceAssembly));
 
-            IExchangeConnectionInfo[] connectionInfoArray = {configuration.GetSection("Connectors:CoinEx").Get<ExchangeConnectionInfo>()};
+            IExchangeConnectionInfo[] connectionInfoArray = {configuration.GetSection(SettingsNames.CoineExSection)
+                .Get<ExchangeConnectionInfo>()};
+            
             services.AddSingleton(connectionInfoArray);
             services.AddScoped<IDtoConverter, CryptoExchangeConverter>();
             services.AddScoped<ICoinExConnector, CoinExConnector>();
             services.AddScoped<IPublicConnectorFactory,CryptoExPublicConnectorFactory>();
-
             
+            services.AddScoped<IPairPricesRepository, PairPricesRepository>();
             services.AddScoped<IPairInfoRepository, PairInfoBaseRepository>();
             services.AddScoped<PairInfoDomainService>();
-            services.AddScoped<PairInfoUpdaterService>();
-            services.AddScoped<PairInfoChainService>();
+            services.AddScoped<PairPricesDomainService>();
         }
     }
 }

@@ -13,6 +13,12 @@ namespace ArbitralSystem.PublicMarketInfoService.Mapping
                 .ForMember(dest => dest.Offset, opt => opt.Condition(source => source.Offset != null))
                 .ForMember(dest => dest.Count, opt => opt.Condition(source => source.Count != null));
 
+            CreateMap<PairPriceFilter, Domain.Queries.Filters.IntervalPageFilter>()
+                .ForMember(dest => dest.Offset, opt => opt.Condition(source => source.Offset != null))
+                .ForMember(dest => dest.Count, opt => opt.Condition(source => source.Count != null));
+
+            CreateMap<SummaryPairPriceFilter, Domain.Queries.Filters.IntervalFilter>();
+            
             CreateMap<PolygonFilter, Domain.Queries.Filters.PolygonFilter>();
         }
     }

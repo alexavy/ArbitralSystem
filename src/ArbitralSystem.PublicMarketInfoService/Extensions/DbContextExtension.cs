@@ -9,19 +9,19 @@ namespace ArbitralSystem.PublicMarketInfoService.Extensions
 {
     internal static class DbContextExtension
     {
-        public static void AddArbitralSystemDbContext(this IServiceCollection services, IConfigurationRoot configuration)
+        public static void AddArbitralSystemDbContext(this IServiceCollection services, string connectionString)
         {
             Func<PublicMarketInfoBdContext> dbContextCreationFunc = () =>
             {
                 var dbContextOptions = new DbContextOptionsBuilder<PublicMarketInfoBdContext>()
-                    .UseSqlServer(configuration["Data:DefaultConnection:ConnectionString"])
+                    .UseSqlServer(connectionString)
                     .Options;
 
                 return new PublicMarketInfoBdContext(dbContextOptions);
             };
             services.AddSingleton(dbContextCreationFunc);
             services.AddDbContext<PublicMarketInfoBdContext>(
-                (provider, builder) => builder.UseSqlServer(configuration["Data:DefaultConnection:ConnectionString"])
+                (provider, builder) => builder.UseSqlServer(connectionString)
             );
         }
     }

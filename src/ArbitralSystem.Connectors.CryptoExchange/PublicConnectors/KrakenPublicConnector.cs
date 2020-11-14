@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Helpers;
 using ArbitralSystem.Connectors.Core.Converters;
@@ -12,7 +14,7 @@ using Kraken.Net.Objects;
 
 namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
 {
-    public class KrakenPublicConnector : IPublicConnector
+    internal class KrakenPublicConnector : BasePublicConnector , IPublicConnector
     {
         private readonly IDtoConverter _converter;
         private readonly IKrakenClient _krakenClient;
@@ -28,16 +30,28 @@ namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
             _converter = converter;
         }
 
-        async Task<long> IPublicConnector.GetServerTime()
+        async Task<long> IPublicConnector.GetServerTime(CancellationToken ct)
         {
-            var response = await _krakenClient.GetServerTimeAsync();
+            var response = await _krakenClient.GetServerTimeAsync(ct);
+            ValidateResponse(response);
             return TimeHelper.DateTimeToTimeStamp(response.Data.ToUniversalTime());
         }
 
-        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo()
+        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo(CancellationToken ct)
         {
-            var response = await _krakenClient.GetSymbolsAsync();
+            var response = await _krakenClient.GetSymbolsAsync(ct);
+            ValidateResponse(response);
             return _converter.Convert<IEnumerable<KrakenSymbol>, IEnumerable<PairInfo>>(response.Data.Values);
+        }
+ 
+        async Task<IEnumerable<IPairPrice>> IPublicConnector.GetPairPrices(CancellationToken ct)
+        {
+            var pairsResponse = await _krakenClient.GetSymbolsAsync(ct);
+            ValidateResponse(pairsResponse);
+            var availableExchangePairs = pairsResponse.Data.Keys.Select(o => o.ToString()).ToArray();
+            var response = _krakenClient.GetTickers(ct, availableExchangePairs);
+            ValidateResponse(response);
+            return _converter.Convert<IEnumerable<KeyValuePair<string,KrakenRestTick>>, IEnumerable<PairPrice>>(response.Data);
         }
     }
 }

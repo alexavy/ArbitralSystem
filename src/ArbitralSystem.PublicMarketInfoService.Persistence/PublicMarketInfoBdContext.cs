@@ -10,7 +10,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence
              }
      
              public DbSet<PairInfo> PairInfos { get; set; }
-     
+             public DbSet<PairPrice> PairPrices { get; set; }
              protected override void OnModelCreating(ModelBuilder modelBuilder)
              {
                  modelBuilder.ApplyConfigurationsFromAssembly(typeof(PublicMarketInfoBdContext).Assembly, t => t.Namespace.Contains("Persistence"));

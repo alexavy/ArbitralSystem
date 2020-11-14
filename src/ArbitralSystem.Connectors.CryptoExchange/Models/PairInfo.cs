@@ -5,7 +5,6 @@ using ArbitralSystem.Domain.MarketInfo;
 [assembly:InternalsVisibleTo("ArbitralSystem.Connectors.Test")]
 namespace ArbitralSystem.Connectors.CryptoExchange.Models
 {
-    
     internal class PairInfo : IPairInfo
     {
         public Exchange Exchange { get ; set; }

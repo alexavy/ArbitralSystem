@@ -15,7 +15,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "3.1.3")
+                .HasAnnotation("ProductVersion", "3.1.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
@@ -55,6 +55,25 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Migrations
                         .HasFilter("[ExchangePairName] IS NOT NULL AND [DelistedAt] IS NOT NULL");
 
                     b.ToTable("PairInfos");
+                });
+
+            modelBuilder.Entity("ArbitralSystem.PublicMarketInfoService.Persistence.Entities.PairPrice", b =>
+                {
+                    b.Property<DateTimeOffset>("Date")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Exchange")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExchangePairName")
+                        .IsRequired()
+                        .HasColumnType("varchar(16)")
+                        .HasMaxLength(12);
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("decimal(19,9)");
+
+                    b.ToTable("PairPrices");
                 });
 #pragma warning restore 612, 618
         }

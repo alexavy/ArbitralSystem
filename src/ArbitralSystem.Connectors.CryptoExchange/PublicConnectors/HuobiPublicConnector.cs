@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Helpers;
 using ArbitralSystem.Connectors.Core.Converters;
@@ -12,7 +13,7 @@ using JetBrains.Annotations;
 
 namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
 {
-    public class HuobiPublicConnector : IPublicConnector
+    internal class HuobiPublicConnector : BasePublicConnector , IPublicConnector
     {
         private readonly IDtoConverter _converter;
         private readonly IHuobiClient _huobiClient;
@@ -28,16 +29,25 @@ namespace ArbitralSystem.Connectors.CryptoExchange.PublicConnectors
             _converter = converter;
         }
 
-        async Task<long> IPublicConnector.GetServerTime()
+        async Task<long> IPublicConnector.GetServerTime(CancellationToken ct)
         {
-            var response = await _huobiClient.GetServerTimeAsync();
+            var response = await _huobiClient.GetServerTimeAsync(ct);
+            ValidateResponse(response);
             return TimeHelper.DateTimeToTimeStamp(response.Data.ToUniversalTime());
         }
 
-        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo()
+        async Task<IEnumerable<IPairInfo>> IPublicConnector.GetPairsInfo(CancellationToken ct)
         {
-            var response = await _huobiClient.GetSymbolsAsync();
+            var response = await _huobiClient.GetSymbolsAsync(ct);
+            ValidateResponse(response);
             return _converter.Convert<IEnumerable<HuobiSymbol>, IEnumerable<PairInfo>>(response.Data);
+        }
+
+        async Task<IEnumerable<IPairPrice>> IPublicConnector.GetPairPrices(CancellationToken ct)
+        {
+            var response = await _huobiClient.GetTickersAsync(ct);
+            ValidateResponse(response);
+            return _converter.Convert<IEnumerable<HuobiSymbolTick>, IEnumerable<PairPrice>>(response.Data.Ticks);
         }
     }
 }

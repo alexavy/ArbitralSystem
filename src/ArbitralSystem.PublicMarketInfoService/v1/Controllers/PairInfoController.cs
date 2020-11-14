@@ -1,4 +1,4 @@
-using System.Collections;
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -7,16 +7,14 @@ using ArbitralSystem.Common.Validation;
 using ArbitralSystem.Domain.MarketInfo;
 using ArbitralSystem.PublicMarketInfoService.Domain.Commands;
 using ArbitralSystem.PublicMarketInfoService.Domain.Queries;
-using ArbitralSystem.PublicMarketInfoService.Domain.Queries.QueryModels;
-using ArbitralSystem.PublicMarketInfoService.Services;
+using ArbitralSystem.PublicMarketInfoService.Domain.Queries.Filters;
 using ArbitralSystem.PublicMarketInfoService.v1.Models;
 using ArbitralSystem.PublicMarketInfoService.v1.Models.Paging;
 using AutoMapper;
-using Hangfire;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Internal;
-using Serilog;
+using PairInfoFilter = ArbitralSystem.PublicMarketInfoService.v1.Models.PairInfoFilter;
+using PolygonFilter = ArbitralSystem.PublicMarketInfoService.v1.Models.PolygonFilter;
 
 namespace ArbitralSystem.PublicMarketInfoService.v1.Controllers
 {
@@ -28,11 +26,7 @@ namespace ArbitralSystem.PublicMarketInfoService.v1.Controllers
         private readonly IMapper _mapper;
         private readonly IMediator _mediator;
 
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        /// <param name="mapper"></param>
-        /// <param name="mediator"></param>
+        /// <inheritdoc />
         public PairInfoController(IMapper mapper, IMediator mediator)
         {
             Preconditions.CheckNotNull(mapper, mediator);

@@ -9,6 +9,8 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Mapping
         public DomainToPersistenceMappingProfile()
         {
             CreateMap<PairInfo, Entities.PairInfo>();
+            CreateMap<PairPrice, Entities.PairPrice>()
+                .ForMember(destination => destination.Date, o => o.MapFrom(source => source.CreatedAt));
         }
     }
 }

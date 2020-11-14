@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ArbitralSystem.Common.Logger;
 using ArbitralSystem.Connectors.CoinEx;
 using ArbitralSystem.Connectors.Core;
 using ArbitralSystem.Connectors.Core.Distributers;
@@ -9,8 +10,6 @@ using ArbitralSystem.Connectors.Core.Models;
 using ArbitralSystem.Connectors.Core.PublicConnectors;
 using ArbitralSystem.Connectors.CryptoExchange;
 using ArbitralSystem.Connectors.CryptoExchange.Common;
-using ArbitralSystem.Connectors.CryptoExchange.Distributers;
-using ArbitralSystem.Connectors.CryptoExchange.PublicConnectors;
 using ArbitralSystem.Domain.MarketInfo;
 using ArbitralSystem.Test;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

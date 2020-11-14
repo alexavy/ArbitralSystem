@@ -85,6 +85,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScheduleDistributor", "Sche
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArbitralSystem.Distributor.Core.Test", "ArbitralSystem.Distributor.Core.Test\ArbitralSystem.Distributor.Core.Test.csproj", "{FD715D8A-30FA-4978-8B2A-A6AE3B22FABB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArbitralSystem.Test", "ArbitralSystem.Test\ArbitralSystem.Test.csproj", "{73FF4D95-CAB0-4931-9D34-541CB2BF7904}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -219,6 +221,10 @@ Global
 		{FD715D8A-30FA-4978-8B2A-A6AE3B22FABB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD715D8A-30FA-4978-8B2A-A6AE3B22FABB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD715D8A-30FA-4978-8B2A-A6AE3B22FABB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73FF4D95-CAB0-4931-9D34-541CB2BF7904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73FF4D95-CAB0-4931-9D34-541CB2BF7904}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73FF4D95-CAB0-4931-9D34-541CB2BF7904}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73FF4D95-CAB0-4931-9D34-541CB2BF7904}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -256,6 +262,7 @@ Global
 		{FADB05B7-40C1-4550-BCE7-480DD7A1589E} = {E08A88D0-2EA8-4A8B-87A4-0BAE87233145}
 		{2D53C8C0-40CE-422A-A363-4F302B021B8A} = {E08A88D0-2EA8-4A8B-87A4-0BAE87233145}
 		{FD715D8A-30FA-4978-8B2A-A6AE3B22FABB} = {74092463-BF86-4A7F-8993-A12E507D3198}
+		{73FF4D95-CAB0-4931-9D34-541CB2BF7904} = {74092463-BF86-4A7F-8993-A12E507D3198}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C71F41F0-CA79-4DBD-92BF-51B52308FD41}

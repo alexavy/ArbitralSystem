@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ArbitralSystem.Common.Pagination;
 using ArbitralSystem.Common.Pagination.SqlServer;
 using ArbitralSystem.PublicMarketInfoService.Domain.Queries;
+using ArbitralSystem.PublicMarketInfoService.Domain.Queries.Filters;
 using ArbitralSystem.PublicMarketInfoService.Domain.Queries.QueryModels;
 using ArbitralSystem.PublicMarketInfoService.Persistence.Mapping.AuxiliaryModels;
 using AutoMapper;

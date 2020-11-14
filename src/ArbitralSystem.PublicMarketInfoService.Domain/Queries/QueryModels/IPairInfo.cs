@@ -3,7 +3,7 @@ using ArbitralSystem.Domain.MarketInfo;
 
 namespace ArbitralSystem.PublicMarketInfoService.Domain.Queries.QueryModels
 {
-    
+
     public interface IPairInfo 
     {
         Guid Id { get; }

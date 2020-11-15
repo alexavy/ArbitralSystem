@@ -19,17 +19,13 @@ normalize_col_names <- function(dt) {
 
 
 
-
 #' Calculate candle
 #'
 #' @param dt 
 #'
 calc_candle <- function(dt) {
   require(dplyr)
-  
-  stopifnot(
-    is.grouped_df(dt)
-  )
+  stopifnot(is.grouped_df(dt))
   
   dt %>% 
     # calc best price
@@ -59,3 +55,4 @@ calc_candle <- function(dt) {
       arbitrage_flag = spread < 0
     )
 }
+

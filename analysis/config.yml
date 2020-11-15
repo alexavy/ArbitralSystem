@@ -1,2 +1,4 @@
 default:
   depth_in_minutes: 1440
+  exchange_fee_pcnt: 0.001
+  threshold_in_usdt: 0.99

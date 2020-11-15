@@ -1,0 +1,62 @@
+marketinfo-fake-storage:
+  container_name: marketinfo-fake-storage
+  stdin_open: true
+  tty: true
+  image: marketinfo-fake-storage
+  environment:
+    - BUILD_ENVIRONMENT=docker
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Storage.FakeMarketInfoStorageService.dll
+
+marketinfo-aggregator:
+  container_name: marketinfo-aggregator
+  stdin_open: true
+  tty: true
+  image: marketinfo-aggregator
+  environment:
+    - BUILD_ENVIRONMENT=docker
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MarketInfoAggregatorService.dll
+
+public-market-info:
+  container_name: public-market-info
+  stdin_open: true
+  tty: true
+  image: public-market-info
+  ports:
+    - '6001:6001'
+  environment:
+    - BUILD_ENVIRONMENT=docker
+    - ASPNETCORE_URLS=http://+:6001
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.PublicMarketInfoService.dll
+
+mq-manager-service:
+  container_name: mq-manager-service
+  stdin_open: true
+  tty: true
+  image: mq-manager-service
+  ports:
+    - '7001:7001'
+  environment:
+    - BUILD_ENVIRONMENT=docker
+    - ASPNETCORE_URLS=http://+:7001
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQManagerService.dll
+
+mq-orderbook-distributor-0:
+  container_name: mq-orderbook-distributor-0
+  stdin_open: true
+  tty: true
+  image: mq-orderbook-distributor
+  environment:
+    - BUILD_ENVIRONMENT=docker
+    - DistributorServerSettings__ServerName=srv_0
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+

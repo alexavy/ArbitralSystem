@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArbitralSystem.Common\ArbitralSystem.Common.csproj" />
+    <ProjectReference Include="..\ArbitralSystem.Connectors.Core\ArbitralSystem.Connectors.Core.csproj" />
+  </ItemGroup>
+
+</Project>

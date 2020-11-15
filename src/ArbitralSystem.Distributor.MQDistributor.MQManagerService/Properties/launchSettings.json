@@ -1,0 +1,13 @@
+﻿{
+  "profiles": {
+    "ArbitralSystem.Distributor.MQDistributor.MQManagerService": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger/index.html",
+      "applicationUrl": "http://localhost:7001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

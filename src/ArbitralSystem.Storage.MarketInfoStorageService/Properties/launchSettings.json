@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ArbitralSystem.Storage.MarketInfoStorageService": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "BUILD_ENVIRONMENT": "local"
+      }
+    }
+  }
+}

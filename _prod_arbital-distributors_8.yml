@@ -1,0 +1,88 @@
+mq-orderbook-distributor-1:
+  container_name: mq-orderbook-distributor-1
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_1
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-2:
+  container_name: mq-orderbook-distributor-2
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_2
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-3:
+  container_name: mq-orderbook-distributor-3
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_3
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-4:
+  container_name: mq-orderbook-distributor-4
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_4
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-5:
+  container_name: mq-orderbook-distributor-5
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_5
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-6:
+  container_name: mq-orderbook-distributor-6
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_6
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-7:
+  container_name: mq-orderbook-distributor-7
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_7
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+
+mq-orderbook-distributor-8:
+  container_name: mq-orderbook-distributor-8
+  stdin_open: true
+  tty: true
+  image: localhost:5050/mq-orderbook-distributor
+  environment:
+    - DistributorServerSettings__ServerName=srv_8
+  entrypoint:
+    - dotnet
+    - ArbitralSystem.Distributor.MQDistributor.MQOrderBookDistributorService.dll
+

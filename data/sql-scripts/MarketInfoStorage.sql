@@ -14,13 +14,20 @@ GO
 
 
 
--- # Users ----
+-- # Security ----
+
+CREATE ROLE [db_executor] AUTHORIZATION [dbo]
+GO
+
+GRANT EXECUTE TO [db_executor]
+GO
 
 CREATE USER [mlbot] FOR LOGIN [mlbot] WITH DEFAULT_SCHEMA=[dbo]
 GO
 
-EXEC sp_addrolemember N'db_datareader', N'mlbot'
-GO
+EXEC sp_addrolemember @rolename = N'db_datareader', @membername = N'mlbot'
+EXEC sp_addrolemember @rolename = N'db_executor', @membername = N'mlbot'
+go
 
 
 
@@ -72,14 +79,15 @@ group by YEAR([CatchAt]), MONTH([CatchAt]), DAY([CatchAt])
 go
 
 
-create view [dbo].[last_orderbooks_vw] as
+create view [dbo].[last_orderbooks_vw] 
+as
 select [Exchange]
       ,[Symbol]
       ,[Price]
-
+      
       ,[Quantity] as Volume
       ,[Direction]
-
+      
       ,[CatchAt] as [Timestamp]
 from [dbo].[OrderbookPriceEntries]
 where [CatchAt] > DATEADD(DAY, -7, GETDATE())
@@ -94,21 +102,20 @@ create procedure [dbo].[get_orderbook_sp]
     ,@fromDate datetime
     ,@toDate datetime
 as
+select 
+    [Exchange]
+    ,[Symbol]
+    ,[Price]
 
-    select 
-        [Exchange]
-        ,[Symbol]
-        ,[Price]
+    ,[Quantity] as Volume
+    ,[Direction]
 
-        ,[Quantity] as Volume
-        ,[Direction]
-
-        ,[CatchAt] as [Timestamp]
-    from [dbo].[OrderbookPriceEntries]
-    where 
-        [Symbol] = @symbol
-        and [CatchAt] >= @fromDate
-        and [CatchAt] <= @toDate
+    ,[CatchAt] as [Timestamp]
+from [dbo].[OrderbookPriceEntries]
+where 
+    [Symbol] = @symbol
+    and [CatchAt] >= @fromDate
+    and [CatchAt] <= @toDate
 ;
     
 go  

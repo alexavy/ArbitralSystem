@@ -39,58 +39,73 @@ create table [dbo].[OrderbookPriceEntries](
     [Quantity] [decimal](19, 9) NOT NULL,
     [Exchange] [tinyint] NOT NULL,
     [Direction] [tinyint] NOT NULL,
-    [CatchAt] [datetime2](7) NOT NULL
+    [UtcCatchAt] [datetime2](7) NOT NULL
 ) on [PRIMARY]
 
 go
 
-
 CREATE CLUSTERED COLUMNSTORE INDEX [CCI-OrderbookPriceEntries] ON [dbo].[OrderbookPriceEntries] 
 WITH (DROP_EXISTING = OFF, COMPRESSION_DELAY = 0, DATA_COMPRESSION = COLUMNSTORE) ON [PRIMARY]
+go
+
+
+CREATE CLUSTERED COLUMNSTORE INDEX [CCI-DistributerStates] ON [dbo].[DistributerStates] 
+WITH (DROP_EXISTING = OFF, COMPRESSION_DELAY = 0, DATA_COMPRESSION = COLUMNSTORE) ON [PRIMARY]
+go
 
 
 
 -- # Views ----
 
+drop view [dbo].[orderbook_timestamps_vw] 
+go
+
 create view [dbo].[orderbook_timestamps_vw] 
 as
 select 
     [Symbol]
-    ,min([CatchAt]) as first_orderbook_timestamp
-    ,max([CatchAt]) as last_orderbook_timestamp
+    ,min([UtcCatchAt]) as first_orderbook_timestamp
+    ,max([UtcCatchAt]) as last_orderbook_timestamp
     ,count(distinct(Exchange)) as exchanges_n
     ,count(*) as quotes_n
 from [dbo].[OrderbookPriceEntries]
-where [CatchAt] > DATEADD(DAY, -30, GETDATE())
+where [UtcCatchAt] > DATEADD(DAY, -30, GETDATE())
 group by [Symbol]
 
 go
 
 
+drop view [dbo].[current_month_trades_stats] 
+go
+
 create view [dbo].[current_month_trades_stats] 
 as
 select 
-    min([CatchAt]) as start_time
-    ,max([CatchAt]) as end_time
+    min([UtcCatchAt]) as start_time
+    ,max([UtcCatchAt]) as end_time
     ,count(*) as N
 from [dbo].[OrderbookPriceEntries]
-group by YEAR([CatchAt]), MONTH([CatchAt]), DAY([CatchAt])
+group by YEAR([UtcCatchAt]), MONTH([UtcCatchAt]), DAY([UtcCatchAt])
 
 go
 
 
+drop view [dbo].[last_orderbooks_vw] 
+go
+
 create view [dbo].[last_orderbooks_vw] 
 as
-select [Exchange]
-      ,[Symbol]
-      ,[Price]
-      
-      ,[Quantity] as Volume
-      ,[Direction]
-      
-      ,[CatchAt] as [Timestamp]
+select 
+    [Exchange]
+    ,[Symbol]
+    ,[Price]
+    
+    ,[Quantity] as Volume
+    ,[Direction]
+    
+    ,[UtcCatchAt] as [Timestamp]
 from [dbo].[OrderbookPriceEntries]
-where [CatchAt] > DATEADD(DAY, -7, GETDATE())
+where [UtcCatchAt] > DATEADD(DAY, -7, GETDATE())
 
 go
 
@@ -98,9 +113,9 @@ go
 -- # Programming ----
 
 create procedure [dbo].[get_orderbook_sp]
-    @symbol varchar(16)  
-    ,@fromDate datetime
-    ,@toDate datetime
+    @symbol varchar(16)
+    ,@fromTime datetime
+    ,@toTime datetime
 as
 select 
     [Exchange]
@@ -110,33 +125,32 @@ select
     ,[Quantity] as Volume
     ,[Direction]
 
-    ,[CatchAt] as [Timestamp]
+    ,[UtcCatchAt] as [Timestamp]
 from [dbo].[OrderbookPriceEntries]
 where 
     [Symbol] = @symbol
-    and [CatchAt] >= @fromDate
-    and [CatchAt] <= @toDate
+    and [UtcCatchAt] >= @fromTime
+    and [UtcCatchAt] <= @toTime
 ;
     
 go  
 
 
 create procedure [dbo].[get_bot_statuses_history_sp]
-    @symbol varchar(16)  
-    , @fromDate datetime
-    , @toDate datetime
+    @symbol varchar(16)
+    ,@fromTime datetime
+    ,@toTime datetime
 as   
-    select 
-      [Id]
-      ,[Exchange]
-      ,[PreviousStatus]
-      ,[CurrentStatus]
-      ,[ChangedAt]
+    select
+      [Exchange]
+      ,[Symbol]
+      ,[CurrentStatus] as [Status]
+      ,[UtcChangedAt] as [Timestamp]
     from [dbo].[DistributerStates]
     where 
         [Symbol] = @symbol
-        and [ChangedAt] >= @fromDate
-        and [ChangedAt] <= @toDate
+        and [UtcChangedAt] >= @fromTime
+        and [UtcChangedAt] <= @toTime
 ;
     
 go

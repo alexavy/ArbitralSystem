@@ -23,6 +23,7 @@ suppressPackageStartupMessages({
   library(lubridate)
   
   library(skimr)
+  library(tictoc)
   
   library(ggplot2)
 })
@@ -43,13 +44,19 @@ job <- list(
 
 # Load dataset ----
 
-## Open DB connection
-con <- dbConnect(odbc::odbc(), .connection_string = job$secrets$db_conn_string)
+## Open DB connections
+market_info_db_con <- dbConnect(odbc::odbc(), .connection_string = job$secrets$market_info_conn_string)
+public_market_data_db_con <- dbConnect(odbc::odbc(), .connection_string = job$secrets$public_market_data_conn_string)
 
 
 ## Get history
-orderbook_timestamps_dt <- dbGetQuery(con, "select * from orderbook_timestamps_vw")
+orderbook_timestamps_dt <- dbGetQuery(market_info_db_con, "select * from orderbook_timestamps_vw")
 orderbook_timestamps_dt %<>% normalize_col_names
+
+stopifnot(
+  nrow(orderbook_timestamps_dt) > 0,
+  nrow(orderbook_timestamps_dt) == n_unique(orderbook_timestamps_dt$symbol)
+)
 
 
 orderbook_timestamps_dt %>% 
@@ -61,58 +68,248 @@ orderbook_timestamps_dt %>%
 
 
 ## Get orderbook for specific pair
-orderbook_dt <- dbGetQuery(con, "exec get_orderbook_sp @symbol = 'ETH/BTC', @fromDate = '2020-10-30', @toDate = '2020-10-31'")
-orderbook_dt %<>% normalize_col_names
 
-
-orderbook_dt %<>% 
-  mutate_at(
-    c("exchange", "direction", "symbol"), 
-    as.factor
-  ) %>% 
-  mutate(
-    timestamp_round = floor_date(timestamp, "second")
+get_settings <- function(dt) {
+  stopifnot(
+    is.data.frame(dt),
+    nrow(dt) == 1
   )
+  
+  list(
+    symbol = dt[1, ]$symbol,
+    from_time = dt[1, ]$last_orderbook_timestamp - minutes(job$config$depth_in_minutes),
+    to_time = dt[1, ]$last_orderbook_timestamp
+  )
+}
 
 
-orderbook_dt %>% 
+#' Execute SQL procedure
+#'
+#' @param .con 
+#' @param .proc_name 
+#' @param .settings 
+#'
+exec_proc <- function(.con, .proc_name, .settings) {
+  stopifnot(
+    is.character(.proc_name),
+    is.list(.settings) && length(.settings) == 3
+  )
+  
+  dbGetQuery(.con, 
+             sprintf("exec %s @symbol = '%s', @fromTime = '%s', @toTime = '%s'", .proc_name, .settings$symbol, .settings$from_time, .settings$to_time))
+}
+
+
+#' Get orderbooks
+#'
+#' @param .settings 
+#'
+get_orderbooks <- function(.settings) {
+  
+  tic("Executing get_orderbook_sp...")
+  dt <- exec_proc(market_info_db_con, "get_orderbook_sp", .settings)
+  toc()
+  
+  dt %>% 
+    normalize_col_names %>% 
+    mutate(
+      timestamp_round = floor_date(timestamp, "second")
+    )
+}
+
+
+#' Get bot statuses
+#'
+#' @param .settings 
+#'
+get_bot_statuses <- function(.settings) {
+  
+  tic("Executing get_bot_statuses_history_sp...")
+  dt <- exec_proc(market_info_db_con, "get_bot_statuses_history_sp", .settings)
+  toc()
+  
+  
+  dt %<>% 
+    normalize_col_names %>% 
+    mutate(
+      timestamp = floor_date(timestamp, unit = "seconds")
+    )
+  
+  
+  if (nrow(dt) == 0) {
+    print("[WARN] Records not found")
+    
+    exchanges_n <- 6L
+    
+    dt %<>%
+      rbind(tibble(
+        exchange = 1:exchanges_n,
+        symbol = rep(.settings$symbol, exchanges_n),
+        status = rep(4L, exchanges_n),
+        timestamp = rep(.settings$from_time, exchanges_n)
+      ))
+  }
+  
+  
+  expand.grid(
+      exchange = unique(dt$exchange),
+      symbol = unique(dt$symbol),
+      timestamp = seq(.settings$from_time, .settings$to_time, by = 1)
+    ) %>% 
+    left_join(
+      dt, by = c("exchange", "symbol", "timestamp")
+    ) %>% 
+    group_by(exchange, symbol) %>% 
+    arrange(timestamp) %>% 
+    tidyr::fill(status, .direction = "down") %>% 
+    ungroup %>% 
+    rename(timestamp_round = timestamp)
+}
+
+
+#' Get exchange rates
+#'
+#' @param .settings 
+#'
+get_1D_candles  <- function(.settings) {
+  
+  tic("Executing get_symbol_price_sp...")
+  dt <- exec_proc(public_market_data_db_con, "get_symbol_price_sp", .settings)
+  toc()
+  
+  dt %>% 
+    normalize_col_names %>% 
+    mutate(
+      symbol = str_to_upper(symbol),
+      date = as.Date(timestamp)
+    ) %>% 
+    # calculate OHLC
+    group_by(exchange, date) %>% 
+    summarise(
+      open = first(price, order_by = timestamp),
+      high = max(price, na.rm = T),
+      low = min(price, na.rm = T),
+      close = last(price, order_by = timestamp),
+      close_time = max(timestamp),
+      .groups = "drop"
+    )
+}
+
+
+## 
+
+jobs_settings <- orderbook_timestamps_dt %>% 
+  ## business rules
+  filter(exchanges_n >= job$config$min_exchange_n) %>% 
+  ## prepare
+  group_by(symbol) %>% 
+  group_split %>% 
+  ## start
+  map(get_settings)
+
+
+
+## For each pair in settings 
+
+settings <- jobs_settings[[2]]
+settings
+
+
+orderbooks_dt <- get_orderbooks(settings)
+stopifnot(
+  nrow(orderbooks_dt) > 0,
+  !anyNA(orderbooks_dt)
+)
+
+orderbooks_dt %>% as_tibble
+
+orderbooks_dt %>% 
   mutate(hour_of_day = hour(timestamp_round)) %>% 
   count(exchange, symbol, hour_of_day) %>% 
   spread(exchange, n, fill = 0) %>% 
   arrange(hour_of_day)
 
 
+bot_statuses_dt <- get_bot_statuses(settings)
+stopifnot(
+  nrow(bot_statuses_dt) > 0,
+  !anyNA(bot_statuses_dt)
+)
 
-## Get USDT exchange rate
-# TODO
-
-
-
-## Get bot statuses
-bot_statuses_dt <- dbGetQuery(con, "exec get_bot_statuses_history_sp @symbol = 'ETH/BTC', @fromDate = '2020-10-30', @toDate = '2020-10-31'")
-bot_statuses_dt %<>% normalize_col_names
+bot_statuses_dt
 
 
+usdt_settings <- settings
+usdt_settings$symbol <- sprintf("%sUSDT", str_split(settings$symbol, "/")[[1]][2])
+usdt_settings
 
-# Work ----
-
-## Calculate candles
-
-candles_dt <- orderbook_dt %>% 
-  group_by(symbol, direction, timestamp_round) %>% 
-  calc_candle
-
+# TODO: when symbol is USDTUSDT
+candles_dt <- get_1D_candles(usdt_settings)
 stopifnot(
   nrow(candles_dt) > 0,
-  candles_dt %>% group_by(symbol, timestamp_round) %>% filter(n() > 1) %>% nrow == 0
+  !anyNA(candles_dt)
 )
 
 candles_dt
 
 
+## 
+
+data <- orderbooks_dt %>% 
+  ##
+  mutate(
+    timestamp_round_int = as.integer(timestamp_round)
+  ) %>% 
+  inner_join(
+    bot_statuses_dt %>% mutate(timestamp_round_int = as.integer(timestamp_round)) %>% select(-timestamp_round), 
+    by = c("exchange", "symbol", "timestamp_round_int")
+  ) %>% 
+  select(-timestamp_round_int) %>% 
+  
+  ##
+  mutate(
+    date = as.Date(timestamp)
+  ) %>% 
+  inner_join(
+    candles_dt %>% select(exchange, date, close), 
+    by = c("exchange", "date")
+  )
+
+
+data %>% distinct(date, exchange)
+
+stopifnot(
+  !anyNA(data),
+  nrow(data) == nrow(orderbooks_dt)
+)
+
+
+print(
+  sprintf("[WARN] Missed values for %s seconds", 
+          data %>% filter(status != job$config$connected_bot_status) %>% nrow)
+)
+
+data %<>% filter(status == job$config$connected_bot_status)
+
+
+
+
+
+
+
+
+# Work ----
+
+
+mutate_at(
+  c("exchange", "direction", "symbol"), 
+  as.factor
+)
+
+
 ## Find arbitrage opportunity
 
-arbitrage_cases <- orderbook_dt %>% 
+arbitrage_cases <- data %>% 
   
   ## get only quotes w/ arbitrage opportunity
   inner_join(

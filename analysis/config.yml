@@ -1,4 +1,6 @@
 default:
-  depth_in_minutes: 1440
+  depth_in_minutes: 121
   exchange_fee_pcnt: 0.001
   threshold_in_usdt: 0.99
+  min_exchange_n: 2
+  connected_bot_status: 4

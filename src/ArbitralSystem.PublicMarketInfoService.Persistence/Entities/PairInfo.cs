@@ -11,12 +11,11 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
     {
         public Guid Id { get; set; }
         public string ExchangePairName { get; set; }
-        
         public string UnificatedPairName { get; set; }
         public string BaseCurrency { get; set; }
         public string QuoteCurrency { get; set;}
-        public DateTimeOffset CreatedAt { get; set; }
-        public DateTimeOffset? DelistedAt { get; set; }
+        public DateTime UtcCreatedAt { get; set; }
+        public DateTime? UtcDelistedAt { get; set; }
         public Exchange Exchange { get; set; }
 
         public void Configure(EntityTypeBuilder<PairInfo> builder)
@@ -24,12 +23,34 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
             builder.ToTable("PairInfos")
                 .HasKey(o=>o.Id);
             
-            builder.HasIndex(i => new {i.ExchangePairName, i.Exchange, i.DelistedAt}).IsUnique();
+            builder.HasIndex(i => new {i.ExchangePairName, i.Exchange, i.UtcDelistedAt}).IsUnique();
+
+            builder.Property(o => o.ExchangePairName)
+                .HasColumnType("varchar(32)")
+                .IsRequired();
+            
+            builder.Property(o => o.UnificatedPairName)
+                .HasColumnType("varchar(32)")
+                .IsRequired();
+            
+            builder.Property(o => o.BaseCurrency)
+                .HasColumnType("varchar(16)")
+                .IsRequired();
+            
+            builder.Property(o => o.QuoteCurrency)
+                .HasColumnType("varchar(16)")
+                .IsRequired();
+            
+            builder.Property(o => o.UtcCreatedAt)
+                .HasColumnType("smalldatetime")
+                .IsRequired();
+
+            builder.Property(o => o.UtcDelistedAt)
+                .HasColumnType("smalldatetime");
 
             builder.Property(o => o.Exchange)
-                .HasConversion(x => x.ToString(),
-                    x => (Exchange) Enum.Parse(typeof(Exchange), x))
-                .IsUnicode(false);
+                .HasColumnType("tinyint")
+                .IsRequired();
         }
     }
 }

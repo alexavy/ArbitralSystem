@@ -26,44 +26,43 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BaseCurrency")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("DelistedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Exchange")
                         .IsRequired()
-                        .HasColumnType("varchar(900)")
-                        .IsUnicode(false);
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<byte>("Exchange")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("ExchangePairName")
-                        .HasColumnType("nvarchar(450)");
+                        .IsRequired()
+                        .HasColumnType("varchar(16)");
 
                     b.Property<string>("QuoteCurrency")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasColumnType("varchar(8)");
 
                     b.Property<string>("UnificatedPairName")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTime>("UtcCreatedAt")
+                        .HasColumnType("smalldatetime");
+
+                    b.Property<DateTime?>("UtcDelistedAt")
+                        .HasColumnType("smalldatetime");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExchangePairName", "Exchange", "DelistedAt")
+                    b.HasIndex("ExchangePairName", "Exchange", "UtcDelistedAt")
                         .IsUnique()
-                        .HasFilter("[ExchangePairName] IS NOT NULL AND [DelistedAt] IS NOT NULL");
+                        .HasFilter("[ExchangePairName] IS NOT NULL AND [UtcDelistedAt] IS NOT NULL");
 
                     b.ToTable("PairInfos");
                 });
 
             modelBuilder.Entity("ArbitralSystem.PublicMarketInfoService.Persistence.Entities.PairPrice", b =>
                 {
-                    b.Property<DateTimeOffset>("Date")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("Exchange")
-                        .HasColumnType("int");
+                    b.Property<byte>("Exchange")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("ExchangePairName")
                         .IsRequired()
@@ -72,6 +71,9 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Migrations
 
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(19,9)");
+
+                    b.Property<DateTime>("UtcDate")
+                        .HasColumnType("smalldatetime");
 
                     b.ToTable("PairPrices");
                 });

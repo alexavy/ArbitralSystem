@@ -7,7 +7,8 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Persistence.Mapping
     {
         public DomainToPersistence()
         {
-            CreateMap<Domain.Models.DistributerState, DistributerState>();
+            CreateMap<Domain.Models.DistributerState, DistributorState>()
+                .ForMember(destination => destination.UtcChangedAt, o => o.MapFrom(source => source.ChangedAt.UtcDateTime));
         }
     }
 }

@@ -6,18 +6,15 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Domain.Models
 {
     public class DistributerState 
     {
-        public Guid Id { get; }
         public string Symbol { get; }
         public Exchange Exchange { get; }
         public DateTimeOffset ChangedAt { get; }
         public DistributerSyncStatus PreviousStatus { get; }
         public DistributerSyncStatus CurrentStatus { get; }
 
-        public DistributerState(Guid id, string symbol, Exchange exchange, DateTimeOffset changedAt, DistributerSyncStatus previousStatus,
+        public DistributerState(string symbol, Exchange exchange, DateTimeOffset changedAt, DistributerSyncStatus previousStatus,
             DistributerSyncStatus currentStatus)
         {
-            Id = id;
-
             if (!symbol.Contains('/'))
                 throw new ArgumentException("Symbol must be in unificated format");
 

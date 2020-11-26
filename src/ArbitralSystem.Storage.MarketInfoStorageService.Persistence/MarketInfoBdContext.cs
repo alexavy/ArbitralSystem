@@ -8,10 +8,9 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Persistence
     {
         public MarketInfoBdContext(DbContextOptions<MarketInfoBdContext> options) : base(options)
         {
-            ;
         }
         
-        public DbSet<DistributerState> DistributerStates { get; set; }
+        public DbSet<DistributorState> DistributerStates { get; set; }
         public DbSet<OrderbookPriceEntry> OrderbookPriceEntries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

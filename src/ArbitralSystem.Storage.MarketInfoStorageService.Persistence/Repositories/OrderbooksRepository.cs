@@ -77,7 +77,7 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Persistence.Repositori
         {
             return new OrderbookPriceEntry
             {
-                CatchAt = orderBook.CatchAt.UtcDateTime,
+                UtcCatchAt = orderBook.CatchAt.UtcDateTime,
                 Exchange = orderBook.Exchange,
                 Direction = direction,
                 Price = entry.Price,

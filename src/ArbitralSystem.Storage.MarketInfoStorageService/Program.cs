@@ -10,16 +10,13 @@ using ArbitralSystem.Service.Core;
 using ArbitralSystem.Storage.MarketInfoStorageService.Consumers;
 using ArbitralSystem.Storage.MarketInfoStorageService.Common;
 using ArbitralSystem.Storage.MarketInfoStorageService.Domain.Interfaces;
-using ArbitralSystem.Storage.MarketInfoStorageService.Domain.Services;
 using ArbitralSystem.Storage.MarketInfoStorageService.Extensions;
-using ArbitralSystem.Storage.MarketInfoStorageService.Persistence;
 using ArbitralSystem.Storage.MarketInfoStorageService.Persistence.Repositories;
 using AutoMapper;
 using GreenPipes;
 using MassTransit;
 using MassTransit.Context;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -97,9 +94,7 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService
                     services.AddSingleton(serviceStorageOptions);
                     services.AddMediatR(AppDomain.CurrentDomain.Load(DomainAssembly),AppDomain.CurrentDomain.Load(PersistenceAssembly));
                     services.AddAutoMapper(Assembly.GetExecutingAssembly(),AppDomain.CurrentDomain.Load(PersistenceAssembly) );
-
-                    services.AddScoped<DistributerStateDomainService>();
-                    services.AddScoped<OrderBookDomainService>();
+                    
                     services.AddScoped<IOrderBooksRepository, OrderBooksRepository>();
                     services.AddScoped<IDistributerStatesRepository, DistributerStatesRepository>();
                     

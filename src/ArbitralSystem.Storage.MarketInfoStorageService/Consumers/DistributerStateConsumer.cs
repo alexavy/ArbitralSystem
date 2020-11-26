@@ -1,11 +1,13 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
+using ArbitralSystem.Common.Helpers;
 using ArbitralSystem.Common.Logger;
+using ArbitralSystem.Common.Validation;
 using ArbitralSystem.Messaging.Messages;
-using ArbitralSystem.Storage.MarketInfoStorageService.Domain.Commands;
+using ArbitralSystem.Storage.MarketInfoStorageService.Domain.Interfaces;
 using JetBrains.Annotations;
 using MassTransit;
-using MediatR;
 using DistributerState = ArbitralSystem.Storage.MarketInfoStorageService.Domain.Models.DistributerState;
 
 namespace ArbitralSystem.Storage.MarketInfoStorageService.Consumers
@@ -13,14 +15,15 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Consumers
     [UsedImplicitly]
     internal class DistributerStateConsumer : IConsumer<IDistributerStateMessage>
     {
+        private readonly IDistributerStatesRepository _distributerStatesRepository;
         private readonly ILogger _logger;
-        private readonly IMediator _mediator;
-
-
-        public DistributerStateConsumer(IMediator mediator, ILogger logger)
+        
+        private readonly TimeSpan _timeOut = TimeSpan.FromSeconds(5); 
+        public DistributerStateConsumer(IDistributerStatesRepository distributerStatesRepository, ILogger logger)
         {
+            Preconditions.CheckNotNull(distributerStatesRepository, logger);
+            _distributerStatesRepository = distributerStatesRepository;
             _logger = logger;
-            _mediator = mediator;
         }
 
         public async Task Consume(ConsumeContext<IDistributerStateMessage> context)
@@ -29,9 +32,13 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Consumers
 
             try
             {
-                var state = new DistributerState(Guid.NewGuid(), context.Message.Symbol, context.Message.Exchange, context.Message.ChangedAt,
+                var state = new DistributerState(context.Message.Symbol, context.Message.Exchange, context.Message.ChangedAt,
                     context.Message.PreviousStatus, context.Message.CurrentStatus);
-                await _mediator.Send(new SaveDistributerStateCommand(state));
+                
+                var result = await ArbitralStopWatch
+                    .MeasureInMls(async () => await _distributerStatesRepository
+                        .SaveWithNoCheckAsync(state, new CancellationTokenSource(_timeOut).Token));
+                _logger.Debug($"Elapsed time for saving distributor state - {result} mls");
             }
             catch (Exception e)
             {

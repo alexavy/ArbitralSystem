@@ -2,15 +2,15 @@
 {
     public enum DistributerSyncStatus
     {
-        /// <summary>Not connected</summary>
+        /// Not connected
         Disconnected=0,
-        /// <summary>Connecting</summary>
+        /// Connecting
         Connecting=1,
-        /// <summary>Reconnecting</summary>
+        /// Reconnecting
         Reconnecting=2,
-        /// <summary>Syncing data</summary>
+        /// Syncing data
         Syncing=3,
-        /// <summary>Data synced, order book is up to date</summary>
+        /// Data synced, order book is up to date
         Synced=4,
     }
 }

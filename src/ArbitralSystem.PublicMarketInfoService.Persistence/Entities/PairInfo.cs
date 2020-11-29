@@ -10,7 +10,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
     public class PairInfo : IEntityTypeConfiguration<PairInfo>
     {
         public Guid Id { get; set; }
-        public string ExchangePairName { get; set; }
+        public string ExchangePairName { get; set; }  // TODO: rename to symbol
         public string UnificatedPairName { get; set; } // TODO: rename to symbol
         public string BaseCurrency { get; set; }
         public string QuoteCurrency { get; set;}
@@ -23,6 +23,8 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
             builder.ToTable("PairInfos")
                 .HasKey(o=>o.Id);
             
+            // TODO: add new index
+            // builder.HasIndex(i => new {i.ExchangePairName, i.Exchange}).IsUnique();
             builder.HasIndex(i => new {i.ExchangePairName, i.Exchange, i.UtcDelistedAt}).IsUnique();
 
             builder.Property(o => o.ExchangePairName)

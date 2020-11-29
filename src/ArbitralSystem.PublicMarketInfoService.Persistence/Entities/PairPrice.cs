@@ -7,7 +7,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
 {
     public class PairPrice : IEntityTypeConfiguration<PairPrice>
     {
-        public string ExchangePairName { get; set; }
+        public string ExchangePairName { get; set; } // TODO: rename to ExchangeSymbol
         public decimal? Price { get; set; }
         public Exchange Exchange { get; set; }
         public DateTime UtcDate { get; set; }
@@ -18,7 +18,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
                 .HasNoKey();
             
             builder.Property(o => o.ExchangePairName)
-                .HasColumnType("varchar(32)")
+                .HasColumnType("varchar(32)") // TODO: update max length
                 .HasMaxLength(16)
                 .IsRequired();
             

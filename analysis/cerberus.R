@@ -40,6 +40,13 @@ job <- list(
   secrets = config::get(file = "secrets.yml")
 )
 
+stopifnot(
+  is.list(job),
+  !is.null(job$config)
+)
+
+print(job$config)
+
 
 
 # Load dataset ----
@@ -66,6 +73,9 @@ orderbook_timestamps_dt %>%
   ggplot(aes(x = value, y = symbol)) +
     geom_line()
 
+
+
+# Functions ----
 
 ## Get orderbook for specific pair
 
@@ -100,6 +110,19 @@ exec_proc <- function(.con, .proc_name, .settings) {
 }
 
 
+#' Round datetime and return timestamp
+#'
+#' @param x 
+#' @param .unit 
+#'
+to_timestamp <- function(x, .unit = "second") {
+  require(lubridate)
+  require(dplyr)
+  
+  x %>% floor_date(.unit) %>% as.integer
+}
+
+
 #' Get orderbooks
 #'
 #' @param .settings 
@@ -111,10 +134,7 @@ get_orderbooks <- function(.settings) {
   toc()
   
   dt %>% 
-    normalize_col_names %>% 
-    mutate(
-      timestamp_round = floor_date(timestamp, "second")
-    )
+    normalize_col_names
 }
 
 
@@ -124,6 +144,8 @@ get_orderbooks <- function(.settings) {
 #'
 get_bot_statuses <- function(.settings) {
   
+  .settings$from_time <- .settings$from_time - months(1) # HACK
+  
   tic("Executing get_bot_statuses_history_sp...")
   dt <- exec_proc(market_info_db_con, "get_bot_statuses_history_sp", .settings)
   toc()
@@ -131,8 +153,13 @@ get_bot_statuses <- function(.settings) {
   
   dt %<>% 
     normalize_col_names %>% 
-    mutate(
-      timestamp = floor_date(timestamp, unit = "seconds")
+    #
+    mutate(timestamp = to_timestamp(timestamp)) %>% 
+    #
+    group_by(exchange, symbol, timestamp) %>% 
+    summarise(
+      status = dplyr::last(status, order_by = timestamp),
+      .groups = "drop"
     )
   
   
@@ -148,22 +175,25 @@ get_bot_statuses <- function(.settings) {
         status = rep(4L, exchanges_n),
         timestamp = rep(.settings$from_time, exchanges_n)
       ))
+  } else {
+    print(sprintf(
+      "[INFO] Bots detected for following exchanges: %s", paste(unique(dt$exchange), collapse = ", ")
+    ))
   }
   
   
   expand.grid(
       exchange = unique(dt$exchange),
       symbol = unique(dt$symbol),
-      timestamp = seq(.settings$from_time, .settings$to_time, by = 1)
+      timestamp = seq(.settings$from_time, .settings$to_time, by = 1) %>% to_timestamp
     ) %>% 
     left_join(
       dt, by = c("exchange", "symbol", "timestamp")
     ) %>% 
     group_by(exchange, symbol) %>% 
     arrange(timestamp) %>% 
-    tidyr::fill(status, .direction = "down") %>% 
-    ungroup %>% 
-    rename(timestamp_round = timestamp)
+    fill(status, .direction = "down") %>% 
+    ungroup
 }
 
 
@@ -178,25 +208,31 @@ get_1D_candles  <- function(.settings) {
   toc()
   
   dt %>% 
+    ##
     normalize_col_names %>% 
     mutate(
       symbol = str_to_upper(symbol),
       date = as.Date(timestamp)
     ) %>% 
-    # calculate OHLC
-    group_by(exchange, date) %>% 
+    
+    ## calculate OHLC
+    group_by(symbol, exchange, date) %>% 
     summarise(
       open = first(price, order_by = timestamp),
       high = max(price, na.rm = T),
       low = min(price, na.rm = T),
       close = last(price, order_by = timestamp),
-      close_time = max(timestamp),
+      time = max(timestamp),
+      
       .groups = "drop"
     )
 }
 
 
-## 
+
+### Preprocessing ----
+
+##
 
 jobs_settings <- orderbook_timestamps_dt %>% 
   ## business rules
@@ -208,7 +244,6 @@ jobs_settings <- orderbook_timestamps_dt %>%
   map(get_settings)
 
 
-
 ## For each pair in settings 
 
 settings <- jobs_settings[[2]]
@@ -216,6 +251,10 @@ settings
 
 
 orderbooks_dt <- get_orderbooks(settings)
+
+orderbooks_dt %<>% 
+  mutate(date = as.Date(timestamp))
+
 stopifnot(
   nrow(orderbooks_dt) > 0,
   !anyNA(orderbooks_dt)
@@ -224,69 +263,122 @@ stopifnot(
 orderbooks_dt %>% as_tibble
 
 orderbooks_dt %>% 
-  mutate(hour_of_day = hour(timestamp_round)) %>% 
+  mutate(hour_of_day = hour(timestamp)) %>% 
   count(exchange, symbol, hour_of_day) %>% 
   spread(exchange, n, fill = 0) %>% 
   arrange(hour_of_day)
 
 
 bot_statuses_dt <- get_bot_statuses(settings)
+
+bot_statuses_dt %<>% 
+  filter(!is.na(status)) %>% 
+  rename(timestamp_round = timestamp)
+
 stopifnot(
   nrow(bot_statuses_dt) > 0,
-  !anyNA(bot_statuses_dt)
+  !anyNA(bot_statuses_dt),
+  bot_statuses_dt$exchange %>% n_unique > 1,
+  bot_statuses_dt %>% distinct(exchange, symbol, timestamp_round) %>% nrow == nrow(bot_statuses_dt)
 )
 
 bot_statuses_dt
 
 
 usdt_settings <- settings
-usdt_settings$symbol <- sprintf("%sUSDT", str_split(settings$symbol, "/")[[1]][2])
-usdt_settings
-
-# TODO: when symbol is USDTUSDT
-candles_dt <- get_1D_candles(usdt_settings)
+usdt_settings$symbol <- sprintf("%sUSDT", str_split(settings$symbol, "/")[[1]][2]) # TODO: insert / in pair name
 stopifnot(
-  nrow(candles_dt) > 0,
-  !anyNA(candles_dt)
+  usdt_settings$symbol != "USDTUSDT"
 )
 
-candles_dt
+print(usdt_settings)
 
 
-## 
+
+trading_pair_candles_dt <- get_1D_candles(usdt_settings)
+
+get_min_close_price <- function(.date) {
+  print(.date)
+  
+  trading_pair_candles_dt %>% 
+    filter(date == .date) %>% 
+    pull(close) %>% 
+    min(., na.rm = T)
+}
+
+
+trading_pair_candles_dt %<>% 
+  ##
+  right_join(
+    expand.grid(
+      symbol = unique(trading_pair_candles_dt$symbol),
+      exchange = orderbooks_dt %>% filter(symbol == settings$symbol) %>% pull(exchange) %>% unique,
+      date = orderbooks_dt %>% filter(symbol == settings$symbol) %>% pull(date) %>% unique
+    ),
+    by = c("symbol", "exchange", "date")
+  )
+  
+trading_pair_candles_dt$min_close <- sapply(trading_pair_candles_dt$date, get_min_close_price)
+
+trading_pair_candles_dt %<>% 
+  mutate(
+    close = if_else(is.na(close), min_close, close)
+  ) %>% 
+  select(-min_close)
+  
+
+stopifnot(
+  nrow(trading_pair_candles_dt) > 0,
+  !anyNA(trading_pair_candles_dt %>% select(symbol, exchange, date, close))
+)
+
+trading_pair_candles_dt
+
+
+
+# Join all together ----
 
 data <- orderbooks_dt %>% 
   ##
   mutate(
-    timestamp_round_int = as.integer(timestamp_round)
-  ) %>% 
-  inner_join(
-    bot_statuses_dt %>% mutate(timestamp_round_int = as.integer(timestamp_round)) %>% select(-timestamp_round), 
-    by = c("exchange", "symbol", "timestamp_round_int")
-  ) %>% 
-  select(-timestamp_round_int) %>% 
-  
-  ##
-  mutate(
+    timestamp_round = to_timestamp(timestamp),
     date = as.Date(timestamp)
   ) %>% 
-  inner_join(
-    candles_dt %>% select(exchange, date, close), 
+  
+  ##
+  left_join(
+    bot_statuses_dt, 
+    by = c("exchange", "symbol", "timestamp_round")
+  ) %>% 
+  left_join(
+    trading_pair_candles_dt %>% transmute(exchange, date, trading_pair_1D_close = close), 
     by = c("exchange", "date")
+  ) %>% 
+  
+  ##
+  mutate_at(
+    all_of(c("symbol", "exchange", "direction", "status")),
+    as.factor
   )
 
+data %>% skim
 
-data %>% distinct(date, exchange)
 
 stopifnot(
-  !anyNA(data),
-  nrow(data) == nrow(orderbooks_dt)
+  nrow(data) > 0,
+  nrow(data) <= nrow(orderbooks_dt),
+  !anyNA(data)
 )
+
+
+data %>% 
+  count(date, exchange) %>% 
+  spread(exchange, n)
 
 
 print(
   sprintf("[WARN] Missed values for %s seconds", 
-          data %>% filter(status != job$config$connected_bot_status) %>% nrow)
+          data %>% filter(status != job$config$connected_bot_status) %>% pull(timestamp_round) %>% n_unique)
 )
 
 data %<>% filter(status == job$config$connected_bot_status)
@@ -294,17 +386,7 @@ data %<>% filter(status == job$config$connected_bot_status)
 
 
 
-
-
-
-
 # Work ----
-
-
-mutate_at(
-  c("exchange", "direction", "symbol"), 
-  as.factor
-)
 
 
 ## Find arbitrage opportunity
@@ -313,7 +395,7 @@ arbitrage_cases <- data %>%
   
   ## get only quotes w/ arbitrage opportunity
   inner_join(
-    candles_dt %>% filter(arbitrage_flag),
+    trading_pair_candles_dt %>% filter(arbitrage_flag),
     by = c("symbol", "timestamp_round")
   ) %>% 
   
@@ -349,7 +431,7 @@ arbitrage_cases <- data %>%
     usdt_pair = sprintf("%s/USDT", str_split(symbol, "/")[[1]][2])
   ) %>% 
   left_join(
-    candles_dt %>% 
+    trading_pair_candles_dt %>% 
       filter(str_ends(symbol, "/USDT")) %>% 
       rename(usdt_pair = symbol, usdt_amount = mid_price) %>% 
       select(usdt_pair, timestamp_round, usdt_amount),

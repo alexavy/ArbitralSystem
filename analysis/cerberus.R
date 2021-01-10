@@ -287,6 +287,7 @@ bot_statuses_dt
 
 usdt_settings <- settings
 usdt_settings$symbol <- sprintf("%sUSDT", str_split(settings$symbol, "/")[[1]][2]) # TODO: insert / in pair name
+
 stopifnot(
   usdt_settings$symbol != "USDTUSDT"
 )
@@ -351,7 +352,7 @@ data <- orderbooks_dt %>%
     by = c("exchange", "symbol", "timestamp_round")
   ) %>% 
   left_join(
-    trading_pair_candles_dt %>% transmute(exchange, date, trading_pair_1D_close = close), 
+    trading_pair_candles_dt %>% transmute(exchange, date, usdt_trading_pair_price = close), 
     by = c("exchange", "date")
   ) %>% 
   
@@ -381,95 +382,207 @@ print(
           data %>% filter(status != job$config$connected_bot_status) %>% pull(timestamp_round) %>% n_unique)
 )
 
+
+data %>% 
+  sample_frac(.01) %>% 
+  mutate(
+    bot_status = if_else(status == job$config$connected_bot_status, "Connected", "Not connected", "Unknown"),
+    direction_name = if_else(direction == 0, "Bid", "Ask", "Invalid")
+  ) %>% 
+  
+  ggplot(aes(x = timestamp, y = price, color = exchange)) +
+    geom_line() +
+    
+    scale_x_datetime(date_breaks = "12 hours", date_labels = "%H:%M %b %d") +
+    facet_grid(direction_name ~ bot_status)
+  
+
 data %<>% filter(status == job$config$connected_bot_status)
 
 
 
+# Estimate arbitrage opportunity ----
 
-# Work ----
+## Best prices and total volume (all exchanges)
+
+prices_all_exchanges_dt <- data %>% 
+  ## 1m candles (all exchanges)
+  group_by(
+    symbol, direction, timestamp_round
+  ) %>% 
+  summarise(
+    min_price = min(price),
+    max_price = max(price),
+    .groups = "drop"
+  ) %>% 
+  
+  ## best price
+  mutate(
+    best_price = if_else(direction == 0, max_price, min_price, NA_real_)
+  ) %>% 
+  select(-min_price, -max_price) %>% 
+  
+  ## best bid, best ask, spread
+  spread(direction, best_price) %>% 
+  rename(best_bid = `0`, best_ask = `1`) %>% 
+  mutate(
+    spread_pct = abs((best_ask - best_bid)/best_ask * 100), 
+    arbitrage_flag = (best_ask - best_bid) < 0
+  )
+
+stopifnot(
+  nrow(prices_all_exchanges_dt) > 0,
+  !anyNA(prices_all_exchanges_dt),
+  prices_all_exchanges_dt %>% distinct(timestamp_round, symbol) %>% nrow == nrow(prices_all_exchanges_dt),
+  all(prices_all_exchanges_dt$best_ask > 0),
+  all(prices_all_exchanges_dt$best_bid > 0)
+)
+
+prices_all_exchanges_dt
 
 
-## Find arbitrage opportunity
+volume_all_exchanges_dt <- data %>% 
+  ##
+  inner_join(
+    prices_all_exchanges_dt,
+    by = c("symbol", "timestamp_round")
+  ) %>% 
+  mutate(
+    has_price_delta = if_else(direction == 0, price - best_ask, best_bid - price, NA_real_)
+  ) %>% 
+  filter(has_price_delta > 0) %>% 
+  
+  ## volume in 1m candles (all exchanges)
+  group_by(
+    symbol, direction, timestamp_round
+  ) %>% 
+  summarise(
+    total_volume = sum(volume),
+    .groups = "drop"
+  ) %>% 
 
-arbitrage_cases <- data %>% 
+  ## liqudity volume
+  spread(direction, total_volume) %>% 
+  rename(total_bid = `0`, total_ask = `1`) %>% 
+  mutate(
+    market_volume = if_else(total_bid > total_ask, total_ask, total_bid, NA_real_)
+  )
+
+
+stopifnot(
+  nrow(volume_all_exchanges_dt) > 0,
+  !anyNA(volume_all_exchanges_dt),
+  volume_all_exchanges_dt %>% distinct(timestamp_round, symbol) %>% nrow == nrow(volume_all_exchanges_dt),
+  volume_all_exchanges_dt$market_volume > 0
+)
+
+volume_all_exchanges_dt
+
+
+## Searching arbitrage cases
+
+arbitrage_cases_dt <- data %>% 
   
   ## get only quotes w/ arbitrage opportunity
   inner_join(
-    trading_pair_candles_dt %>% filter(arbitrage_flag),
+    prices_all_exchanges_dt,
+    by = c("symbol", "timestamp_round")
+  ) %>% 
+  inner_join(
+    volume_all_exchanges_dt,
     by = c("symbol", "timestamp_round")
   ) %>% 
   
   ## calculate weighted delta
   mutate(
-    delta = if_else(direction == 0,
-                    price - best_ask, best_bid - price, 
-                    NA_real_),
-    w_delta = volume*delta*(1 - 2*job$config$exchange_fee_pcnt) # TODO: we need to use min volume 
+    price_delta = if_else(direction == 0, price - best_ask, best_bid - price, NA_real_),
+    w_price_delta = if_else(volume < market_volume, volume*price_delta, market_volume*price_delta),
+    usdt_delta = w_price_delta*usdt_trading_pair_price 
   ) %>% 
-  filter(w_delta > 0) %>% 
   
-  ## summarize all deltas in orderbook snapshot
-  group_by(
-    symbol, timestamp_round, direction
-  ) %>% 
-  summarise(
-    w_delta_total = sum(w_delta)
-  ) %>% 
-  ungroup %>% 
-  
-  ## store only min delta
-  group_by(
-    symbol, timestamp_round
-  ) %>% 
-  summarise(
-    w_delta_total_refined = min(w_delta_total) # TODO: we need to use min volume for ask and bid separately
-  ) %>% 
-  ungroup %>% 
-  
-  ## get exchange rate
+  ## update profit in USDT
   mutate(
-    usdt_pair = sprintf("%s/USDT", str_split(symbol, "/")[[1]][2])
-  ) %>% 
-  left_join(
-    trading_pair_candles_dt %>% 
-      filter(str_ends(symbol, "/USDT")) %>% 
-      rename(usdt_pair = symbol, usdt_amount = mid_price) %>% 
-      select(usdt_pair, timestamp_round, usdt_amount),
-    by = c("usdt_pair", "timestamp_round")
-  ) %>% 
-  mutate(
-    usdt_amount = if_else(usdt_pair != "USDT/USDT", usdt_amount, 1.0, NA_real_)
-  ) %>% 
-  
-  ## calculate delta in USDT
-  mutate(
-    w_delta_total_refined_usdt = w_delta_total_refined * usdt_amount 
+    usdt_delta_refined = usdt_delta * (1 - 2*job$config$exchange_fee_pcnt),
+    usdt_delta_refined = if_else(usdt_delta_refined < job$config$risks$min_order_volume_in_usdt, 0, usdt_delta_refined)
   )
 
 
-arbitrage_cases %>% 
-  filter(
-    w_delta_total_refined_usdt > job$config$threshold_in_usdt
-  ) %>% 
-  arrange(timestamp_round)
+stopifnot(
+  nrow(arbitrage_cases_dt) > 0,
+  !anyNA(arbitrage_cases_dt$usdt_delta_refined),
+  arbitrage_cases_dt$usdt_delta_refined >= 0
+)
+  
 
-
-## Estimate arbitrage volume
-
-arbitrage_cases_plot <- arbitrage_cases %>% 
+## Set arbitrage cases
+arbitrage_cases_dt %<>% 
+  filter(direction == 1) %>% 
   mutate(
-    timestamp_h = floor_date(timestamp, "hours")
+    target = if_else(usdt_delta_refined > job$config$risks$min_order_volume_in_usdt, T, F) 
+    #target = if_else(target & usdt_delta_refined < job$config$risks$max_order_volume_in_usdt, T, F), # NOTE
+  )
+
+stopifnot(
+  nrow(arbitrage_cases_dt) > 0,
+  !anyNA(arbitrage_cases_dt)
+)
+
+
+arbitrage_cases_dt %>% skim
+
+View(
+  arbitrage_cases_dt %>% 
+    filter(target) %>% 
+    select(timestamp_round, symbol, exchange, direction, price, volume, best_bid, best_ask, market_volume, usdt_delta_refined) %>% 
+    arrange(timestamp_round)
+)
+
+
+
+# Estimate arbitrage volume ----
+
+View(
+  orderbooks_dt %>% 
+    filter(to_timestamp(timestamp) == 1610211368)
+    #group_by(exchange) %>% 
+    #skim
+    #inner_join(
+    #  arbitrage_cases_dt %>% 
+    #    filter(usdt_delta_refined > 385) %>% 
+    #    mutate(exchange = as.integer(as.character(exchange))) %>% 
+    #    select(timestamp, symbol),
+    #  by = c("timestamp", "symbol")
+    #)
+)
+
+
+ggplot(arbitrage_cases_dt %>% filter(target), aes(x = exchange, y = usdt_delta_refined, color = exchange)) +
+  geom_violin() +
+  scale_y_log10()
+
+
+#arbitrage_cases_plot <- 
+arbitrage_cases_dt %>% 
+  mutate(
+    timestamp_1h = floor_date(timestamp, "24 hours")
   ) %>% 
-  group_by(symbol, timestamp_h) %>% 
-  summarise(total = sum(w_delta_total_refined)) %>% 
+  
+  group_by(timestamp_1h, symbol, exchange) %>% 
+  summarise(
+    total_volume = sum(price*volume*usdt_trading_pair_price),
+    total_usdt_delta = max(usdt_delta_refined),
+    .groups = "drop"
+  ) %>% 
   
   ggplot() +
     geom_point(
-      aes(y = total, x = timestamp_h, size = total, color = symbol),
+      aes(y = total_usdt_delta, x = timestamp_1h, size = total_usdt_delta, color = symbol),
       alpha = .4
     ) +
-    facet_grid(symbol ~ ., scales = "free") +
-    theme_bw()
+  
+    scale_y_log10() +
+    facet_grid(symbol ~ exchange, scales = "free")
+
 
 png(
   sprintf("output/arbitrage_cases_plot%s.png", Sys.Date()),

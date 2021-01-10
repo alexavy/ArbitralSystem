@@ -1,6 +1,8 @@
 default:
-  depth_in_minutes: 121
+  depth_in_minutes: 2880
   exchange_fee_pcnt: 0.001
-  threshold_in_usdt: 0.99
   min_exchange_n: 2
+  risks:
+    min_order_volume_in_usdt: 0.09
+    max_order_volume_in_usdt: 99.9
   connected_bot_status: 4

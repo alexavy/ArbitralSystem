@@ -1,10 +1,12 @@
 using System.Threading.Tasks;
 using ArbitralSystem.Common.Logger;
 using ArbitralSystem.Messaging.Messages;
+using JetBrains.Annotations;
 using MassTransit;
 
 namespace ArbitralSystem.Storage.FakeMarketInfoStorageService.Consumers
 {
+    [UsedImplicitly]
     public class FakeDistributerStateConsumer : IConsumer<IDistributerStateMessage>
     {
         private readonly ILogger _logger;

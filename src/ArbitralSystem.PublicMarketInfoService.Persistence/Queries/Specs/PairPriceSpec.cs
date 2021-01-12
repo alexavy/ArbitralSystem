@@ -11,14 +11,14 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Queries.Specs
         {
             if (!from.HasValue) return x => true;
 
-            return rep => rep.Date >= from;
+            return rep => rep.UtcDate >= from;
         }
         
         public static Expression<Func<PairPrice, bool>> ByTo([CanBeNull] DateTimeOffset? to)
         {
             if (!to.HasValue) return x => true;
 
-            return rep => rep.Date <= to;
+            return rep => rep.UtcDate <= to;
         }
     }
 }

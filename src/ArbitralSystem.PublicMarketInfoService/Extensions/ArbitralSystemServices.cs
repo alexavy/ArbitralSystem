@@ -34,8 +34,6 @@ namespace ArbitralSystem.PublicMarketInfoService.Extensions
             
             services.AddScoped<IPairPricesRepository, PairPricesRepository>();
             services.AddScoped<IPairInfoRepository, PairInfoBaseRepository>();
-            services.AddScoped<PairInfoDomainService>();
-            services.AddScoped<PairPricesDomainService>();
         }
     }
 }

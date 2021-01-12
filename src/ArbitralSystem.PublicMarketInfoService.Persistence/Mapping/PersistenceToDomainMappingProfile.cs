@@ -11,7 +11,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Mapping
         public PersistenceToDomainMappingProfile()
         {
             CreateMap<Entities.PairInfo, PairInfo>().ConstructUsing((o, ctx) =>
-                new PairInfo(o.Id, o.ExchangePairName, o.UnificatedPairName, o.BaseCurrency, o.QuoteCurrency, o.CreatedAt, o.DelistedAt, o.Exchange));
+                new PairInfo(o.Id, o.ExchangePairName, o.UnificatedPairName, o.BaseCurrency, o.QuoteCurrency, o.UtcCreatedAt, o.UtcDelistedAt, o.Exchange));
             
             CreateMap<Entities.PairInfo, IPairInfo>().As<PairInfoAuxiliaryModel>();
             CreateMap<Entities.PairInfo, PairInfoAuxiliaryModel>();

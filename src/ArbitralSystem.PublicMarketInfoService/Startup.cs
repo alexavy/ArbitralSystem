@@ -10,6 +10,8 @@ using Hangfire;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,7 +41,6 @@ namespace ArbitralSystem.PublicMarketInfoService
                     config.EnableEndpointRouting = false;
                     config.RespectBrowserAcceptHeader = true;
                 })
-                //.AddAuthorization()
                 .AddApiExplorer()
                 .AddCors()
                 .AddControllersAsServices()
@@ -77,8 +78,10 @@ namespace ArbitralSystem.PublicMarketInfoService
             });
             app.UseHangfireServer();
 
-            RecurringJob.AddOrUpdate<PairInfoUpdaterJob>("Pair-info-update", x => x.Execute(), _configuration[SettingsNames.PairInfosCron]);
-            RecurringJob.AddOrUpdate<PairPricesJob>("Pair-prices-save", x => x.Execute(), _configuration[SettingsNames.PairPricesCron]);
+            if(_configuration[SettingsNames.PairInfosCron] is var pairInfoCron &&  !string.IsNullOrEmpty(pairInfoCron))
+                RecurringJob.AddOrUpdate<PairInfoUpdaterJob>("Pair-info-update", x => x.Execute(), pairInfoCron);
+            if(_configuration[SettingsNames.PairPricesCron] is var pairPriceCron &&  !string.IsNullOrEmpty(pairInfoCron))
+                RecurringJob.AddOrUpdate<PairPricesJob>("Pair-prices-save", x => x.Execute(), pairPriceCron);
             
             app.UseSwagger();
             app.UseSwaggerUI(
@@ -88,15 +91,9 @@ namespace ArbitralSystem.PublicMarketInfoService
                         options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json",
                             description.GroupName.ToUpperInvariant());
                 });
-
-            //app.UseHttpsRedirection();
-
-            //app.UseRouting();
-            //app.UseAuthorization();
-            //pp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            
             app.UseSerilogRequestLogging();
             app.UseCors(builder => builder.AllowAnyOrigin());
-            //app.UseHttpsRedirection();
             app.UseMvc();
 
             MigrateDbContext(app);

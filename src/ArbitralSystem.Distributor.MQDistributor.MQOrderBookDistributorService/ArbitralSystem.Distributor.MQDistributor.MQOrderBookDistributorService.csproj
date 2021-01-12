@@ -37,6 +37,7 @@
       </None>
       <None Update="appsettings.prod.json">
         <DependentUpon>appsettings.json</DependentUpon>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
 

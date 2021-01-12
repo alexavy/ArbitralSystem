@@ -26,7 +26,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Repositories
             var existedPair = await GetAsync(pairInfo.Id, cancellationToken);
             if (existedPair != null)
                 throw new InvalidOperationException($"Can not create PairInfo .PairInfo with id {pairInfo.Id} already exist");
-
+            
             DbContext.PairInfos.Add(Mapper.Map<Entities.PairInfo>(pairInfo));
             await DbContext.SaveChangesAsync(cancellationToken);
             return Mapper.Map<PairInfo>(await GetAsync(pairInfo.Id, cancellationToken));
@@ -65,7 +65,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Repositories
             existedPair.ExchangePairName = pairInfo.ExchangePairName;
             existedPair.QuoteCurrency = pairInfo.QuoteCurrency;
             existedPair.BaseCurrency = pairInfo.BaseCurrency;
-            existedPair.DelistedAt = pairInfo.DelistedAt;
+            existedPair.UtcDelistedAt = pairInfo.DelistedAt?.UtcDateTime;
 
             await DbContext.SaveChangesAsync(cancellationToken);
         }

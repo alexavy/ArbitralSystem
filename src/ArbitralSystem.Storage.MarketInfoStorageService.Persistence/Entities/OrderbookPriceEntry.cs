@@ -13,7 +13,7 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Persistence.Entities
         public decimal Quantity { get;set;  }
         public Exchange Exchange { get; set; }
         public Direction Direction { get; set; }
-        public DateTime CatchAt { get; set; }
+        public DateTime UtcCatchAt { get; set; }
         
         public void Configure(EntityTypeBuilder<OrderbookPriceEntry> builder)
         {
@@ -21,8 +21,7 @@ namespace ArbitralSystem.Storage.MarketInfoStorageService.Persistence.Entities
                 .HasNoKey();
             
             builder.Property(o => o.Symbol)
-                .HasColumnType("varchar(16)")
-                .HasMaxLength(12)
+                .HasColumnType("varchar(32)")
                 .IsRequired();
             
             builder.Property(o => o.Quantity)

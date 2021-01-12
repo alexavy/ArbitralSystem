@@ -15,7 +15,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Queries.Specs
         {
             if (!isActive.HasValue) return x => true;
 
-            return rep => isActive.Value ? rep.DelistedAt == null : rep.DelistedAt != null;
+            return rep => isActive.Value ? rep.UtcDelistedAt == null : rep.UtcDelistedAt != null;
         }
 
         public static Expression<Func<PairInfo, bool>> ByExchangePairName([CanBeNull] string exchangePairName)
@@ -64,7 +64,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Queries.Specs
         {
             if (!isDelisted.HasValue) return x => true;
 
-            return rep => isDelisted.Value ? rep.DelistedAt.HasValue  : !rep.DelistedAt.HasValue  ;
+            return rep => isDelisted.Value ? rep.UtcDelistedAt.HasValue  : !rep.UtcDelistedAt.HasValue  ;
         }
 
 

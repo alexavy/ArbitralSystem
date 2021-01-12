@@ -38,7 +38,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Queries
                     {
                         Exchange = o.Exchange,
                         ExchangePairName = o.ExchangePairName,
-                        Date = o.Date,
+                        Date = o.UtcDate,
                         Price = o.Price,
                         UnificatedPairName = pairInfo.UnificatedPairName
                     }
@@ -84,7 +84,7 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Queries
         {
             var pairInfo = await DbContext.PairInfos.FirstOrDefaultAsync(o => o.UnificatedPairName == unificatedPairName &&
                                                                               o.Exchange == exchange &&
-                                                                              o.DelistedAt == null, token);
+                                                                              o.UtcDelistedAt == null, token);
             if (pairInfo == null)
                 throw new NoSuchPairException(unificatedPairName, exchange);
             return pairInfo;

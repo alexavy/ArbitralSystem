@@ -83,6 +83,12 @@ namespace ArbitralSystem.Distributor.MQDistributor.MQManagerService.v1.Controlle
             return Ok(_mapper.Map<FullDistributorResult>(result));
         }
 
+        /// <summary>
+        /// This method is auxiliary. This behavior should be executed on front-end. 
+        /// </summary>
+        /// <param name="distributorArgs"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         [HttpPost("several")]
         [ProducesResponseType(200)]
         public async Task<IActionResult> Post([FromBody] OrderBookDistributorArg[] distributorArgs, CancellationToken cancellationToken)

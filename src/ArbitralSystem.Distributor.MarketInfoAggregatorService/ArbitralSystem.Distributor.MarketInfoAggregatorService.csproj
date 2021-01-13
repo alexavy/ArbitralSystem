@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ArbitralSystem.Messaging\ArbitralSystem.Messaging.csproj" />
+      <ProjectReference Include="..\ArbitralSystem.Service.Core\ArbitralSystem.Service.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.local.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.docker.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.prod.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MediatR" Version="8.0.1" />
+    </ItemGroup>
+
+</Project>

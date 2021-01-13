@@ -1,0 +1,13 @@
+﻿{
+  "profiles": {
+    "ArbitralSystem.PublicMarketInfoService": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger/index.html",
+      "applicationUrl": "http://localhost:6000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

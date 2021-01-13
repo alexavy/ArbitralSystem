@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ArbitralSystem.Distributer.TriangleDistributerService": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "BUILD_ENVIRONMENT": "local"
+      }
+    }
+  }
+}

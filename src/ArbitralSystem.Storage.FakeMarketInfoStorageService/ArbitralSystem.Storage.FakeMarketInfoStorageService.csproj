@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ArbitralSystem.Service.Core\ArbitralSystem.Service.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.local.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <DependentUpon>appsettings.json</DependentUpon>
+      </None>
+      <None Update="appsettings.docker.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.prod.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+      </None>
+    </ItemGroup>
+
+</Project>

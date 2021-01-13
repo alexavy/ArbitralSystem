@@ -1,0 +1,30 @@
+seq:
+     container_name: seq
+     hostname: seq
+     image: datalust/seq:latest
+     restart: always
+     ports:
+        - "5341:5341"
+        - "8080:80"
+     environment:
+        ACCEPT_EULA: "Y"
+
+rabbit:
+     container_name: dev_rabbit
+     hostname: rabbit
+     image: rabbitmq:3.6.6-management
+     restart: always
+     environment:
+        - RABBITMQ_DEFAULT_USER=guest
+        - RABBITMQ_DEFAULT_PASS=guest
+     ports:
+        - "5672:5672"
+        - "15672:15672"
+
+registry:
+     container_name: registry
+     hostname: registry
+     image: registry
+     restart: always
+     ports:
+        - "5050:5000"

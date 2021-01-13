@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DocumentationFile>bin\Debug\ArbitralSystem.Distributor.MQDistributor.MQManagerService.xml</DocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DocumentationFile>bin\Release\ArbitralSystem.Distributor.MQDistributor.MQManagerService.xml</DocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="7.0.0" />
+      <PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />
+      <PackageReference Include="MassTransit.AspNetCore" Version="7.0.2" />
+      <PackageReference Include="MassTransit.RabbitMQ" Version="7.0.2" />
+      <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="8.0.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.5" />
+      <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" Version="4.1.1" />
+      <PackageReference Include="Serilog.AspNetCore" Version="3.2.0" />
+      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="5.5.1" />
+      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="5.5.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ArbitralSystem.Common\ArbitralSystem.Common.csproj" />
+      <ProjectReference Include="..\ArbitralSystem.Connectors.ArbitralPublicMarketInfoConnector\ArbitralSystem.Connectors.ArbitralPublicMarketInfoConnector.csproj" />
+      <ProjectReference Include="..\ArbitralSystem.Distributor.MQDistributor.MQPersistence\ArbitralSystem.Distributor.MQDistributor.MQPersistence.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.local.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Update="appsettings.local.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+      </Content>
+      <Content Update="appsettings.docker.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+      <Content Update="appsettings.prod.json">
+        <DependentUpon>appsettings.json</DependentUpon>
+      </Content>
+    </ItemGroup>
+
+
+</Project>

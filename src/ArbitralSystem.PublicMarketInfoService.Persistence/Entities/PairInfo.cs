@@ -10,8 +10,8 @@ namespace ArbitralSystem.PublicMarketInfoService.Persistence.Entities
     public class PairInfo : IEntityTypeConfiguration<PairInfo>
     {
         public Guid Id { get; set; }
-        public string ExchangePairName { get; set; }  // TODO: rename to symbol
-        public string UnificatedPairName { get; set; } // TODO: rename to symbol
+        public string ExchangePairName { get; set; }  
+        public string UnificatedPairName { get; set; }
         public string BaseCurrency { get; set; }
         public string QuoteCurrency { get; set;}
         public DateTime UtcCreatedAt { get; set; }

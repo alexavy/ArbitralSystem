@@ -28,7 +28,6 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
-source("core-experiment.R")
 theme_set(theme_bw())
 
 
@@ -46,6 +45,35 @@ stopifnot(
 )
 
 print(job$config)
+
+
+
+# Core functions ----
+
+#' Normalize column names of dataframe
+#' 
+#' @param dt 
+normalize_col_names <- function(dt) {
+  require(dplyr)
+  stopifnot(is.data.frame(dt))
+  
+  names(dt) <- dt %>% names %>% tolower
+  
+  return(dt)
+}
+
+
+#' Round datetime and return timestamp
+#'
+#' @param x 
+#' @param .unit 
+#'
+to_timestamp <- function(x, .unit = "second") {
+  require(lubridate)
+  require(dplyr)
+  
+  x %>% floor_date(.unit) %>% as.integer
+}
 
 
 
@@ -75,7 +103,7 @@ orderbook_timestamps_dt %>%
 
 
 
-# Functions ----
+# Experiment Functions ----
 
 ## Get orderbook for specific pair
 
@@ -93,6 +121,9 @@ get_settings <- function(dt) {
 }
 
 
+
+# Data and Clients API Functions ----
+
 #' Execute SQL procedure
 #'
 #' @param .con 
@@ -109,18 +140,6 @@ exec_proc <- function(.con, .proc_name, .settings) {
              sprintf("exec %s @symbol = '%s', @fromTime = '%s', @toTime = '%s'", .proc_name, .settings$symbol, .settings$from_time, .settings$to_time))
 }
 
-
-#' Round datetime and return timestamp
-#'
-#' @param x 
-#' @param .unit 
-#'
-to_timestamp <- function(x, .unit = "second") {
-  require(lubridate)
-  require(dplyr)
-  
-  x %>% floor_date(.unit) %>% as.integer
-}
 
 
 #' Get orderbooks
@@ -144,7 +163,7 @@ get_orderbooks <- function(.settings) {
 #'
 get_bot_statuses <- function(.settings) {
   
-  .settings$from_time <- .settings$from_time - months(1) # HACK
+  .settings$from_time <- .settings$from_time - months(1) #! HACK
   
   tic("Executing get_bot_statuses_history_sp...")
   dt <- exec_proc(market_info_db_con, "get_bot_statuses_history_sp", .settings)
@@ -230,9 +249,7 @@ get_1D_candles  <- function(.settings) {
 
 
 
-### Preprocessing ----
-
-##
+# Get settings for jobs ----
 
 jobs_settings <- orderbook_timestamps_dt %>% 
   ## business rules
@@ -244,12 +261,25 @@ jobs_settings <- orderbook_timestamps_dt %>%
   map(get_settings)
 
 
-## For each pair in settings 
+# Remove pair with stable coins
+not_usdt_indx <- jobs_settings %>% 
+  map_lgl(~ str_ends(.x$symbol, job$config$stable_coin_symbol, negate = T)) %>% 
+  which
 
-settings <- jobs_settings[[2]]
+jobs_settings <- jobs_settings[not_usdt_indx]
+
+print(jobs_settings)
+
+
+
+# Get data for job processing ----
+
+## For each pair in settings
+settings <- jobs_settings[[1]]
 settings
 
 
+## Get orderbook
 orderbooks_dt <- get_orderbooks(settings)
 
 orderbooks_dt %<>% 
@@ -266,9 +296,11 @@ orderbooks_dt %>%
   mutate(hour_of_day = hour(timestamp)) %>% 
   count(exchange, symbol, hour_of_day) %>% 
   spread(exchange, n, fill = 0) %>% 
-  arrange(hour_of_day)
+  arrange(hour_of_day) %>% 
+  as_tibble
 
 
+## Get bot statuses
 bot_statuses_dt <- get_bot_statuses(settings)
 
 bot_statuses_dt %<>% 
@@ -285,22 +317,16 @@ stopifnot(
 bot_statuses_dt
 
 
+## Get symbol to stable coin rate 
 usdt_settings <- settings
-usdt_settings$symbol <- sprintf("%sUSDT", str_split(settings$symbol, "/")[[1]][2]) # TODO: insert / in pair name
-
-stopifnot(
-  usdt_settings$symbol != "USDTUSDT"
-)
+usdt_settings$symbol <- sprintf("%s%s", str_split(settings$symbol, "/")[[1]][2], job$config$stable_coin_symbol) # TODO: insert / in pair name
 
 print(usdt_settings)
-
 
 
 trading_pair_candles_dt <- get_1D_candles(usdt_settings)
 
 get_min_close_price <- function(.date) {
-  print(.date)
-  
   trading_pair_candles_dt %>% 
     filter(date == .date) %>% 
     pull(close) %>% 
@@ -322,9 +348,7 @@ trading_pair_candles_dt %<>%
 trading_pair_candles_dt$min_close <- sapply(trading_pair_candles_dt$date, get_min_close_price)
 
 trading_pair_candles_dt %<>% 
-  mutate(
-    close = if_else(is.na(close), min_close, close)
-  ) %>% 
+  mutate(close = if_else(is.na(close), min_close, close)) %>% 
   select(-min_close)
   
 
@@ -342,20 +366,17 @@ trading_pair_candles_dt
 data <- orderbooks_dt %>% 
   ##
   mutate(
-    timestamp_round = to_timestamp(timestamp),
-    date = as.Date(timestamp)
+    timestamp_round = to_timestamp(timestamp)
   ) %>% 
-  
   ##
   left_join(
     bot_statuses_dt, 
     by = c("exchange", "symbol", "timestamp_round")
   ) %>% 
   left_join(
-    trading_pair_candles_dt %>% transmute(exchange, date, usdt_trading_pair_price = close), 
+    trading_pair_candles_dt %>% transmute(exchange, date, trading_pair_to_usdt_rate = close), 
     by = c("exchange", "date")
   ) %>% 
-  
   ##
   mutate_at(
     all_of(c("symbol", "exchange", "direction", "status")),
@@ -396,8 +417,49 @@ data %>%
     scale_x_datetime(date_breaks = "12 hours", date_labels = "%H:%M %b %d") +
     facet_grid(direction_name ~ bot_status)
   
-
+#
 data %<>% filter(status == job$config$connected_bot_status)
+
+
+
+# Finance functions ----
+
+#' Calculate candle
+#'
+#' @param dt 
+#'
+calc_candle <- function(dt) {
+  require(tidyr)
+  require(dplyr)
+  stopifnot(is.grouped_df(dt))
+  
+  dt %>% 
+    ## calc best price
+    summarise(
+      min_price = min(price),
+      max_price = max(price),
+      .groups = "drop"
+    ) %>% 
+    mutate(
+      best_price = if_else(direction == 0, max_price, min_price, NA_real_)
+    ) %>% 
+    select(-min_price, -max_price) %>% 
+    spread(direction, best_price) %>% 
+    rename(
+      best_bid = `0`, best_ask = `1`
+    ) %>% 
+    
+    ## calc mid price and spread
+    mutate(
+      mid_price = best_bid + (best_ask - best_bid)/2,
+      spread = abs((best_ask - best_bid)/best_ask * 100)
+    ) %>% 
+    
+    # add arbitrage opportunity flag
+    mutate(
+      arbitrage_flag = (best_ask - best_bid) < 0
+    )
+}
 
 
 
@@ -406,30 +468,9 @@ data %<>% filter(status == job$config$connected_bot_status)
 ## Best prices and total volume (all exchanges)
 
 prices_all_exchanges_dt <- data %>% 
-  ## 1m candles (all exchanges)
-  group_by(
-    symbol, direction, timestamp_round
-  ) %>% 
-  summarise(
-    min_price = min(price),
-    max_price = max(price),
-    .groups = "drop"
-  ) %>% 
+  group_by(symbol, direction, timestamp_round) %>% 
+  calc_candle
   
-  ## best price
-  mutate(
-    best_price = if_else(direction == 0, max_price, min_price, NA_real_)
-  ) %>% 
-  select(-min_price, -max_price) %>% 
-  
-  ## best bid, best ask, spread
-  spread(direction, best_price) %>% 
-  rename(best_bid = `0`, best_ask = `1`) %>% 
-  mutate(
-    spread_pct = abs((best_ask - best_bid)/best_ask * 100), 
-    arbitrage_flag = (best_ask - best_bid) < 0
-  )
-
 stopifnot(
   nrow(prices_all_exchanges_dt) > 0,
   !anyNA(prices_all_exchanges_dt),
@@ -440,6 +481,8 @@ stopifnot(
 
 prices_all_exchanges_dt
 
+
+## Refine volume for trade
 
 volume_all_exchanges_dt <- data %>% 
   ##
@@ -463,11 +506,12 @@ volume_all_exchanges_dt <- data %>%
 
   ## liqudity volume
   spread(direction, total_volume) %>% 
-  rename(total_bid = `0`, total_ask = `1`) %>% 
+  rename(
+    total_bid = `0`, total_ask = `1`
+  ) %>% 
   mutate(
     market_volume = if_else(total_bid > total_ask, total_ask, total_bid, NA_real_)
   )
-
 
 stopifnot(
   nrow(volume_all_exchanges_dt) > 0,
@@ -493,19 +537,20 @@ arbitrage_cases_dt <- data %>%
     by = c("symbol", "timestamp_round")
   ) %>% 
   
+  ## TODO: correct volume to job$config$risks$max_order_volume_in_usdt
+  
   ## calculate weighted delta
   mutate(
     price_delta = if_else(direction == 0, price - best_ask, best_bid - price, NA_real_),
     w_price_delta = if_else(volume < market_volume, volume*price_delta, market_volume*price_delta),
-    usdt_delta = w_price_delta*usdt_trading_pair_price 
+    usdt_delta = w_price_delta*trading_pair_to_usdt_rate 
   ) %>% 
-  
+
   ## update profit in USDT
   mutate(
     usdt_delta_refined = usdt_delta * (1 - 2*job$config$exchange_fee_pcnt),
     usdt_delta_refined = if_else(usdt_delta_refined < job$config$risks$min_order_volume_in_usdt, 0, usdt_delta_refined)
   )
-
 
 stopifnot(
   nrow(arbitrage_cases_dt) > 0,
@@ -519,7 +564,7 @@ arbitrage_cases_dt %<>%
   filter(direction == 1) %>% 
   mutate(
     target = if_else(usdt_delta_refined > job$config$risks$min_order_volume_in_usdt, T, F) 
-    #target = if_else(target & usdt_delta_refined < job$config$risks$max_order_volume_in_usdt, T, F), # NOTE
+    #target = if_else(target & usdt_delta_refined < job$config$risks$max_order_volume_in_usdt, T, F), # TODO
   )
 
 stopifnot(
@@ -543,18 +588,13 @@ View(
 
 View(
   orderbooks_dt %>% 
-    filter(to_timestamp(timestamp) == 1610211368)
-    #group_by(exchange) %>% 
-    #skim
-    #inner_join(
-    #  arbitrage_cases_dt %>% 
-    #    filter(usdt_delta_refined > 385) %>% 
-    #    mutate(exchange = as.integer(as.character(exchange))) %>% 
-    #    select(timestamp, symbol),
-    #  by = c("timestamp", "symbol")
-    #)
+    #filter(to_timestamp(timestamp) == 1610211368)
+    sample_n(1) %>% 
+    inner_join(
+      arbitrage_cases_dt %>% select(timestamp, symbol),
+      by = c("timestamp", "symbol")
+    )
 )
-
 
 ggplot(arbitrage_cases_dt %>% filter(target), aes(x = exchange, y = usdt_delta_refined, color = exchange)) +
   geom_violin() +
@@ -564,12 +604,12 @@ ggplot(arbitrage_cases_dt %>% filter(target), aes(x = exchange, y = usdt_delta_r
 #arbitrage_cases_plot <- 
 arbitrage_cases_dt %>% 
   mutate(
-    timestamp_1h = floor_date(timestamp, "24 hours")
+    timestamp_1h = floor_date(timestamp, "1 hours")
   ) %>% 
   
   group_by(timestamp_1h, symbol, exchange) %>% 
   summarise(
-    total_volume = sum(price*volume*usdt_trading_pair_price),
+    total_volume = sum(price*volume*trading_pair_to_usdt_rate),
     total_usdt_delta = max(usdt_delta_refined),
     .groups = "drop"
   ) %>% 

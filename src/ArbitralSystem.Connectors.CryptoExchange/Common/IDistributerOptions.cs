@@ -7,7 +7,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange.Common
     {
         Exchange Exchange { get; }
 
-        int Frequency { get; }
+        int? Frequency { get; }
 
         int? Limit { get; }
         

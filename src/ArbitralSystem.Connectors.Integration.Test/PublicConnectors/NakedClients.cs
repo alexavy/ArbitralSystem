@@ -39,6 +39,12 @@ namespace ArbitralSystem.Connectors.Integration.PublicConnectors.Test
         [TestMethod]
         public void TestClients()
         {
+            _binanceClient.SetApiCredentials();
+            _bittrexClient.SetApiCredentials();
+            _coinExClient.SetApiCredentials();
+            _huobiClient.SetApiCredentials();
+            _krakenClient.SetApiCredentials();
+            _kucoinClient.CreateAccount()
         }
     }
 }

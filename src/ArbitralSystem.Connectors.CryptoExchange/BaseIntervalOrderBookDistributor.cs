@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using ArbitralSystem.Connectors.CryptoExchange.Common;
 using ArbitralSystem.Connectors.CryptoExchange.Models;
 using ArbitralSystem.Domain.Distributers;
 using ArbitralSystem.Domain.MarketInfo;
+using CryptoExchange.Net.Interfaces;
 using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.OrderBook;
 using JetBrains.Annotations;
@@ -26,6 +28,8 @@ namespace ArbitralSystem.Connectors.CryptoExchange
 
         private OrderBookDistributerInstance<TExchange> _orderBookDistributerInstance;
 
+        private const int DefaultInterval = 1000;
+        
         protected BaseOrderBookDistributer([NotNull] IDistributerOptions distributerOptions,
             [NotNull] IConverter converter,
             [NotNull] ILogger logger)
@@ -43,7 +47,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange
         public virtual async Task<Task> StartDistributionAsync(OrderBookPairInfo pairInfo, CancellationToken token)
         {
             var orderBook = CreateSymbolOrderBook(pairInfo.ExchangePairName);
-            orderBook.OnStatusChange += OrderBook_OnStatusChange;
+            SubscribeEvents(orderBook);
 
             _orderBookDistributerInstance = new OrderBookDistributerInstance<TExchange>
             {
@@ -54,7 +58,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange
 
             if (token.IsCancellationRequested)
             {
-                orderBook.OnStatusChange -= OrderBook_OnStatusChange;
+                UnSubscribeEvents(orderBook);
                 return Task.CompletedTask;
             }
 
@@ -62,7 +66,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange
 
             if (!response.Success)
             {
-                orderBook.OnStatusChange -= OrderBook_OnStatusChange;
+                UnSubscribeEvents(orderBook);
                 throw new WebsocketException(
                     $"Error while connecting to exchange {Exchange}:{pairInfo.UnificatedPairName}({pairInfo.ExchangePairName}): {response.Error.Message}");
             }
@@ -72,6 +76,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
         }
+
 
         private void OrderBook_OnStatusChange(OrderBookStatus arg1, OrderBookStatus arg2)
         {
@@ -88,6 +93,21 @@ namespace ArbitralSystem.Connectors.CryptoExchange
             };
             OnStatusChanged(state);
         }
+        
+        private void OrderBookOnOnOrderBookUpdate((IEnumerable<ISymbolOrderBookEntry> Bids, IEnumerable<ISymbolOrderBookEntry> Asks) obj)
+        {
+            var orderBook = new OrderBook()
+            {
+                Symbol = _orderBookDistributerInstance.InstanceSymbol,
+                CatchAt = DateTimeOffset.Now,
+                Bids = _converter.Convert<IEnumerable<ISymbolOrderBookEntry>, IEnumerable<IOrderbookEntry>>(obj.Bids),
+                Asks = _converter.Convert<IEnumerable<ISymbolOrderBookEntry>, IEnumerable<IOrderbookEntry>>(obj.Asks),
+                BestBid = _converter.Convert<ISymbolOrderBookEntry, IOrderbookEntry>(obj.Bids.FirstOrDefault()),
+                BestAsk = _converter.Convert<ISymbolOrderBookEntry, IOrderbookEntry>(obj.Asks.FirstOrDefault()),
+                Exchange = Exchange,
+            };
+            OnOrderBook(orderBook);
+        }
 
         private void WatchOnOrderBook(OrderBookDistributerInstance<TExchange> instance)
         {
@@ -103,13 +123,17 @@ namespace ArbitralSystem.Connectors.CryptoExchange
                     if (updateNumber != instance.OrderBook.LastSequenceNumber)
                     {
                         updateTime = DateTimeOffset.Now;
-                        if (!instance.OrderBook.Asks.Any() && !instance.OrderBook.Bids.Any())
-                        {
-                            _logger.Warning($"Empty orderbook received.");
-                        }
                         
-                        var orderBook = FillOrderBook(instance);
-                        OnOrderBook(orderBook);
+                        if (_distributerOptions.Frequency.HasValue)
+                        {
+                            if (!instance.OrderBook.Asks.Any() && !instance.OrderBook.Bids.Any())
+                            {
+                                _logger.Warning($"Empty orderbook received.");
+                            }
+                        
+                            var orderBook = FillOrderBook(instance);
+                            OnOrderBook(orderBook);
+                        }
                         updateNumber = instance.OrderBook.LastSequenceNumber;
                     }
                     else
@@ -119,12 +143,12 @@ namespace ArbitralSystem.Connectors.CryptoExchange
                             _logger.Warning($"Orderbook in silence more than {_distributerOptions.SilenceLimitInSeconds}, reconnect initiated.");
                             instance.OrderBook.Stop();
                             _logger.Debug($"Orderbook behaviour stopped.");
-                            Thread.Sleep(_distributerOptions.Frequency);
+                            Thread.Sleep(_distributerOptions.Frequency ?? DefaultInterval);
                             instance.OrderBook.Start();
                             _logger.Debug($"Orderbook behaviour started.");
                         }
                     }
-                    Thread.Sleep(_distributerOptions.Frequency);
+                    Thread.Sleep(_distributerOptions.Frequency ?? DefaultInterval);
                 }
                 catch (Exception ex)
                 {
@@ -134,7 +158,7 @@ namespace ArbitralSystem.Connectors.CryptoExchange
 
             _logger.Information($"Distribution canceled: {instance.Token.IsCancellationRequested}, for pair: {instance.InstanceSymbol}, Exchange: {Exchange}");
             instance.OrderBook.Stop();
-            instance.OrderBook.OnStatusChange -= OrderBook_OnStatusChange;
+            UnSubscribeEvents(instance.OrderBook);
             instance.OrderBook.Dispose();
         }
 
@@ -146,6 +170,20 @@ namespace ArbitralSystem.Connectors.CryptoExchange
             return orderBook;
         }
 
+        private void SubscribeEvents(TExchange orderBook)
+        {
+            orderBook.OnStatusChange += OrderBook_OnStatusChange;
+            if(_distributerOptions.Frequency != null)
+                orderBook.OnOrderBookUpdate += OrderBookOnOnOrderBookUpdate;
+        }
+        
+        private void UnSubscribeEvents(TExchange orderBook)
+        {
+            orderBook.OnStatusChange -= OrderBook_OnStatusChange;
+            if(_distributerOptions.Frequency != null)
+                orderBook.OnOrderBookUpdate -= OrderBookOnOnOrderBookUpdate;
+        }
+        
         private event OrderBookDelegate OrderBookHandler;
 
         public event OrderBookDelegate OrderBookChanged
